@@ -2420,69 +2420,7 @@
           const x=masterProducts[name];
           rows += '<tr><td>'+sl+++'</td><td>'+excelEsc(name)+'</td><td>'+excelEsc(x.pack)+'</td><td>'+x.mrp.toFixed(2)+'</td><td>'+x.tpVat.toFixed(2)+'</td><td>'+x.qty+'</td><td>'+excelEsc(x.bonusList.join(', ')||'-')+'</td><td>'+x.gross.toFixed(2)+'</td><td>'+x.discount.toFixed(2)+'</td><td>'+x.total.toFixed(2)+'</td></tr>';
         });
-        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table>
-<!-- Nipa AI Assistant -->
-<button id="nipaAIFab" type="button" aria-label="Open Nipa AI Assistant" title="Nipa AI Assistant">
-  <i class="fa-solid fa-robot"></i>
-</button>
-<div id="nipaAIPanel" aria-hidden="true">
-  <div class="nipa-ai-head">
-    <div class="nipa-ai-head-main">
-      <div class="nipa-ai-avatar"><i class="fa-solid fa-robot"></i></div>
-      <div><div class="nipa-ai-title">Nipa AI Assistant</div><div class="nipa-ai-sub">MPO Order সহায়তা</div></div>
-    </div>
-    <button id="nipaAIClose" class="nipa-ai-close" type="button" aria-label="Close">&times;</button>
-  </div>
-  <div id="nipaAIMessages">
-    <div class="nipa-ai-msg bot">আসসালামু আলাইকুম! আমি Nipa AI Assistant। App ব্যবহার, New Order, History, Ledger বা সাধারণ হিসাব নিয়ে প্রশ্ন করতে পারেন।</div>
-  </div>
-  <div class="nipa-ai-suggestions">
-    <button class="nipa-ai-suggestion" type="button" data-ai-q="New Order কীভাবে করব?">New Order</button>
-    <button class="nipa-ai-suggestion" type="button" data-ai-q="Shop Ledger কীভাবে কাজ করে?">Ledger</button>
-    <button class="nipa-ai-suggestion" type="button" data-ai-q="Profile ও MPO Code কোথায় পরিবর্তন করব?">Profile</button>
-  </div>
-  <form id="nipaAIForm">
-    <input id="nipaAIInput" type="text" maxlength="2000" autocomplete="off" placeholder="আপনার প্রশ্ন লিখুন...">
-    <button id="nipaAISend" type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
-  </form>
-</div>
-<script>
-(function(){
-  const fab=document.getElementById('nipaAIFab');
-  const panel=document.getElementById('nipaAIPanel');
-  const close=document.getElementById('nipaAIClose');
-  const form=document.getElementById('nipaAIForm');
-  const input=document.getElementById('nipaAIInput');
-  const send=document.getElementById('nipaAISend');
-  const messages=document.getElementById('nipaAIMessages');
-  if(!fab||!panel||!form||!input||!send||!messages) return;
-  function openAI(){panel.classList.add('show');panel.setAttribute('aria-hidden','false');setTimeout(()=>input.focus(),50)}
-  function closeAI(){panel.classList.remove('show');panel.setAttribute('aria-hidden','true')}
-  function addMessage(text,type){const el=document.createElement('div');el.className='nipa-ai-msg '+type;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el}
-  async function ask(message){
-    const q=String(message||'').trim(); if(!q) return;
-    addMessage(q,'user'); input.value='';
-    const typing=addMessage('ভাবছি…','bot nipa-ai-typing'); send.disabled=true; input.disabled=true;
-    try{
-      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
-      const data=await r.json().catch(()=>({}));
-      typing.remove();
-      if(!r.ok) throw new Error(data.error||('AI request failed ('+r.status+')'));
-      addMessage(data.reply||'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।','bot');
-    }catch(err){
-      typing.remove();
-      addMessage('AI error: '+(err?.message||'Unknown error')+'\nCloudflare Function / GEMINI_API_KEY check করুন।','bot');
-      console.error('Nipa AI:',err);
-    }finally{send.disabled=false;input.disabled=false;input.focus()}
-  }
-  fab.addEventListener('click',()=>panel.classList.contains('show')?closeAI():openAI());
-  close?.addEventListener('click',closeAI);
-  form.addEventListener('submit',e=>{e.preventDefault();ask(input.value)});
-  document.querySelectorAll('[data-ai-q]').forEach(btn=>btn.addEventListener('click',()=>ask(btn.getAttribute('data-ai-q'))));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&panel.classList.contains('show'))closeAI()});
-})();
-</script>
-</body></html>';
+        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table></body></html>';
         const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
         const filename='Nipa_Pharma_Requisition_'+getLocalDateKey()+'.xls';
         forceBrowserDownload(blob,filename);
