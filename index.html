@@ -2894,11 +2894,23 @@ function nipaQueueAppStateSync(){
   clearTimeout(nipaAppStateSyncTimer);
   nipaAppStateSyncTimer=setTimeout(async function(){
     try{
-      const data={}; nipaAppStateKeys(uid).forEach(function(k){const v=localStorage.getItem(k);if(v!==null)data[k]=v;});
-      const {error}=await window.nipaSupabase.from('app_user_state').upsert({user_id:uid,data:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+      // Always use the authenticated Supabase user id for the RLS-owned row.
+      // This prevents a stale/local user id from causing an INSERT policy failure.
+      const authResult=await window.nipaSupabase.auth.getUser();
+      const authUser=authResult?.data?.user;
+      if(!authUser?.id || String(authUser.id)!==String(uid)){
+        console.warn('App state sync skipped: authenticated user id is unavailable or does not match the active profile.');
+        return;
+      }
+      const data={}; nipaAppStateKeys(authUser.id).forEach(function(k){const v=localStorage.getItem(k);if(v!==null)data[k]=v;});
+      const {error}=await window.nipaSupabase.from('app_user_state').upsert({user_id:authUser.id,data:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
       if(error) throw error;
       console.info('App state synced to Supabase.');
-    }catch(e){console.error('App state cloud sync failed:',e);try{nipaSetLoginStatus('Cloud app-data sync error: '+(e.message||e));}catch(_){}}
+    }catch(e){
+      console.error('App state cloud sync failed:',e);
+      // Cloud backup is optional; never show a blocking login error for an RLS/data-sync failure.
+      try{nipaSetLoginStatus('');}catch(_){}
+    }
   },650);
 }
 async function nipaRestoreAppState(uid){
