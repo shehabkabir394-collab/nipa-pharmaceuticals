@@ -1340,6 +1340,7 @@
       try { productBonuses=JSON.parse(localStorage.getItem(nipaUserStorageKey('mpo_bonuses',uid))||'{}')||{}; } catch(e){ productBonuses={}; }
       try { savedShopNames=JSON.parse(localStorage.getItem(nipaUserStorageKey('mpo_shop_names',uid))||'[]')||[]; } catch(e){ savedShopNames=[]; }
     }
+    window.nipaLoadScopedLocalData = nipaLoadScopedLocalData;
     function nipaSaveScopedBonuses(){
       const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;
       if(window.nipaCurrentProfile?.role!=='sr' || !uid) return;
@@ -3025,7 +3026,11 @@ async function nipaHandleSession(session){
     } else {
       console.error('NIPA order loader is unavailable; keeping current orders state.');
     }
-    nipaLoadScopedLocalData(profile, session.user.id);
+    if (typeof window.nipaLoadScopedLocalData === 'function') {
+      window.nipaLoadScopedLocalData(profile, session.user.id);
+    } else {
+      console.error('NIPA scoped local-data loader is unavailable; continuing without scoped local data.');
+    }
 
     // Cloud order sync is optional after authentication. Do not sign the
     // user out if a data-sync/RLS/network error happens here.
