@@ -2910,8 +2910,24 @@ function nipaFriendlyAuthError(error){
   return msg;
 }
 async function nipaLoadProfile(userId){
-  const { data, error } = await nipaSupabase.from('profiles').select('id,email,full_name,mpo_code,role,active').eq('id', userId).single();
-  if (error) throw error;
+  if(!userId) throw new Error('AUTH_USER_ID_MISSING');
+  const { data, error } = await nipaSupabase
+    .from('profiles')
+    .select('id,email,full_name,mpo_code,role,active')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    const detail = error.message || error.code || 'Supabase profiles query failed';
+    console.error('NIPA profiles query failed:', { code:error.code, message:error.message, details:error.details, hint:error.hint, userId });
+    throw new Error('PROFILES_QUERY_ERROR: '+detail);
+  }
+
+  if (!data) {
+    console.error('NIPA profile row not found for auth user:', userId);
+    throw new Error('PROFILES_ROW_NOT_FOUND: এই Auth user-এর ID অনুযায়ী profiles table-এ কোনো row পাওয়া যায়নি।');
+  }
+
   return data;
 }
 function nipaApplyRoleAccess(profile){
@@ -2991,9 +3007,16 @@ async function nipaHandleSession(session){
     // app-data sync errors as "Profile পাওয়া যায়নি".
     await nipaSupabase.auth.signOut();
     const msg = String(error?.message || error || '');
-    nipaSetLoginMessage(/profiles|profile/i.test(msg)
-      ? 'Profile পাওয়া যায়নি। Supabase profiles setup/check করুন।'
-      : 'Login-এর সময় একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।', true);
+    console.error('NIPA login/profile failure detail:', msg, 'authUserId=', session?.user?.id || '');
+    if (/PROFILES_ROW_NOT_FOUND/i.test(msg)) {
+      nipaSetLoginMessage('এই login email-এর Auth account আছে, কিন্তু profiles table-এ এই user-এর profile row নেই। Admin দিয়ে profile row তৈরি/ঠিক করতে হবে।', true);
+    } else if (/PROFILES_QUERY_ERROR/i.test(msg)) {
+      nipaSetLoginMessage('Profiles পড়তে Supabase error হচ্ছে: ' + msg.replace(/^PROFILES_QUERY_ERROR:\s*/i,''), true);
+    } else if (/AUTH_USER_ID_MISSING/i.test(msg)) {
+      nipaSetLoginMessage('Auth user ID পাওয়া যায়নি। আবার Login করুন।', true);
+    } else {
+      nipaSetLoginMessage('Login/Profile error: ' + msg, true);
+    }
     nipaShowLogin();
   }
 }
