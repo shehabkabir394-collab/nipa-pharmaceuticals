@@ -2522,74 +2522,7 @@
 
 
 
-<script id="nipa-navigation-safety">
-/* NIPA NAVIGATION SAFETY PATCH
-   Prevent one page-render error from disabling all app navigation.
-*/
-(function(){
-  const originalNav = (typeof window.navTo === 'function') ? window.navTo : null;
-  window.navTo = function(pageId){
-    try{
-      document.querySelectorAll('.page-content').forEach(function(el){ el.classList.add('hidden'); });
-      const target=document.getElementById(pageId);
-      if(!target){
-        console.warn('NIPA navigation target not found:',pageId);
-        return false;
-      }
-      target.classList.remove('hidden');
-      try{
-        if(originalNav && originalNav !== window.navTo) originalNav(pageId);
-      }catch(err){
-        console.error('NIPA page render error on',pageId,err);
-      }
-      return false;
-    }catch(err){
-      console.error('NIPA navigation error:',pageId,err);
-      const target=document.getElementById(pageId);
-      if(target) target.classList.remove('hidden');
-      return false;
-    }
-  };
 
-  const originalToggle = (typeof window.toggleSideMenu === 'function') ? window.toggleSideMenu : null;
-  window.toggleSideMenu = function(){
-    try{
-      const menu=document.getElementById('sideMenu');
-      const overlay=document.getElementById('sideMenuOverlay');
-      if(!menu) return false;
-      const isOpen=!menu.classList.contains('-translate-x-full');
-      menu.classList.toggle('-translate-x-full');
-      if(overlay) overlay.classList.toggle('hidden',isOpen);
-      return false;
-    }catch(err){
-      console.error('NIPA side menu error:',err);
-      return false;
-    }
-  };
-
-  function forceHome(){
-    try{
-      document.querySelectorAll('.page-content').forEach(function(el){el.classList.add('hidden');});
-      const home=document.getElementById('dashboardPage');
-      if(home) home.classList.remove('hidden');
-      document.querySelectorAll('#bottomNav button').forEach(function(b){b.classList.remove('active');});
-      document.getElementById('bottomHome')?.classList.add('active');
-      try{ if(typeof updateDashboardStats==='function') updateDashboardStats(); }catch(e){console.error('Dashboard refresh error:',e);}
-    }catch(e){console.error('NIPA home restore error:',e);}
-  }
-
-  document.addEventListener('nipa:profile-ready',function(){
-    setTimeout(forceHome,0);
-  });
-
-  document.addEventListener('DOMContentLoaded',function(){
-    setTimeout(function(){
-      const gate=document.getElementById('nipaAuthGate');
-      if(gate && gate.classList.contains('hidden')) forceHome();
-    },50);
-  });
-})();
-</script>
 
 </body></html>';
         const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
@@ -3723,6 +3656,74 @@ window.nipaSupabase = nipaSupabase;
   document.addEventListener('nipa:profile-ready',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),250);});
   document.addEventListener('DOMContentLoaded',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),800);});
   setInterval(function(){if(isAdmin()&&document.visibilityState==='visible')window.nipaAdminLoadAIFeedback(false);},30000);
+})();
+</script>
+<script id="nipa-navigation-safety">
+/* NIPA NAVIGATION SAFETY PATCH
+   Prevent one page-render error from disabling all app navigation.
+*/
+(function(){
+  const originalNav = (typeof window.navTo === 'function') ? window.navTo : null;
+  window.navTo = function(pageId){
+    try{
+      document.querySelectorAll('.page-content').forEach(function(el){ el.classList.add('hidden'); });
+      const target=document.getElementById(pageId);
+      if(!target){
+        console.warn('NIPA navigation target not found:',pageId);
+        return false;
+      }
+      target.classList.remove('hidden');
+      try{
+        if(originalNav && originalNav !== window.navTo) originalNav(pageId);
+      }catch(err){
+        console.error('NIPA page render error on',pageId,err);
+      }
+      return false;
+    }catch(err){
+      console.error('NIPA navigation error:',pageId,err);
+      const target=document.getElementById(pageId);
+      if(target) target.classList.remove('hidden');
+      return false;
+    }
+  };
+
+  const originalToggle = (typeof window.toggleSideMenu === 'function') ? window.toggleSideMenu : null;
+  window.toggleSideMenu = function(){
+    try{
+      const menu=document.getElementById('sideMenu');
+      const overlay=document.getElementById('sideMenuOverlay');
+      if(!menu) return false;
+      const isOpen=!menu.classList.contains('-translate-x-full');
+      menu.classList.toggle('-translate-x-full');
+      if(overlay) overlay.classList.toggle('hidden',isOpen);
+      return false;
+    }catch(err){
+      console.error('NIPA side menu error:',err);
+      return false;
+    }
+  };
+
+  function forceHome(){
+    try{
+      document.querySelectorAll('.page-content').forEach(function(el){el.classList.add('hidden');});
+      const home=document.getElementById('dashboardPage');
+      if(home) home.classList.remove('hidden');
+      document.querySelectorAll('#bottomNav button').forEach(function(b){b.classList.remove('active');});
+      document.getElementById('bottomHome')?.classList.add('active');
+      try{ if(typeof updateDashboardStats==='function') updateDashboardStats(); }catch(e){console.error('Dashboard refresh error:',e);}
+    }catch(e){console.error('NIPA home restore error:',e);}
+  }
+
+  document.addEventListener('nipa:profile-ready',function(){
+    setTimeout(forceHome,0);
+  });
+
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+      const gate=document.getElementById('nipaAuthGate');
+      if(gate && gate.classList.contains('hidden')) forceHome();
+    },50);
+  });
 })();
 </script>
 </body>
