@@ -3020,50 +3020,19 @@ async function nipaHandleSession(session){
   if (!session?.user){
     nipaCurrentUser = null; window.nipaCurrentUser = null; nipaCurrentProfile = null; nipaShowLogin(); return;
   }
+
+  // Step 1: authenticate + load profile. Only this stage can block login.
+  let profile;
   try {
-    const profile = await nipaLoadProfile(session.user.id);
+    profile = await nipaLoadProfile(session.user.id);
     if (!profile || profile.active !== true){
       await nipaSupabase.auth.signOut();
       nipaSetLoginMessage(!profile ? 'আপনার profile পাওয়া যায়নি। Supabase profiles-এ এই account-এর row আছে কিনা দেখুন।' : 'আপনার account inactive। Admin-এর সাথে যোগাযোগ করুন।', true);
-      nipaShowLogin(); return;
+      nipaShowLogin();
+      return;
     }
-
-    // Authentication/profile is successful. Set the user identity first so
-    // a later cloud-data error can never be reported as a profile error.
-    nipaCurrentUser = session.user; window.nipaCurrentUser = session.user;
-    nipaApplyIdentity(profile);
-
-    // Restore this account's saved app state. A cloud-state failure should
-    // not block login; local app data can still be used.
-    try { await nipaRestoreAppState(session.user.id); }
-    catch(error){ console.error('App state restore failed after login:', error); }
-
-    if (typeof window.nipaLoadLocalOrdersForProfile === 'function') {
-      window.nipaLoadLocalOrdersForProfile(profile, session.user.id);
-    } else {
-      console.error('NIPA order loader is unavailable; keeping current orders state.');
-    }
-    if (typeof window.nipaLoadScopedLocalData === 'function') {
-      window.nipaLoadScopedLocalData(profile, session.user.id);
-    } else {
-      console.error('NIPA scoped local-data loader is unavailable; continuing without scoped local data.');
-    }
-
-    // Cloud order sync is optional after authentication. Do not sign the
-    // user out if a data-sync/RLS/network error happens here.
-    try { await loadCloudOrdersForCurrentUser(); }
-    catch(error){ console.error('Cloud order load failed after login:', error); }
-    try { await syncLocalOrdersToCloud(); }
-    catch(error){ console.error('Cloud order sync failed after login:', error); }
-    nipaSaveCurrentUserOrders();
-
-    nipaSetLoginMessage('', false);
-    nipaSetLoginStatus(profile.role === 'admin' ? 'Admin account verified ✓' : 'SR account verified ✓');
-    nipaHideLogin();
   } catch(error){
     console.error('Authentication/profile error:', error);
-    // Only this block handles the actual auth/profile stage. Do not label
-    // app-data sync errors as "Profile পাওয়া যায়নি".
     await nipaSupabase.auth.signOut();
     const msg = String(error?.message || error || '');
     console.error('NIPA login/profile failure detail:', msg, 'authUserId=', session?.user?.id || '');
@@ -3077,7 +3046,50 @@ async function nipaHandleSession(session){
       nipaSetLoginMessage('Login/Profile error: ' + msg, true);
     }
     nipaShowLogin();
+    return;
   }
+
+  // Step 2: auth/profile is successful. Hide the login gate NOW.
+  // Any optional app-data/UI/cloud error must never sign the user out.
+  nipaCurrentUser = session.user;
+  window.nipaCurrentUser = session.user;
+  nipaCurrentProfile = profile;
+  window.nipaCurrentProfile = profile;
+  nipaHideLogin();
+  nipaSetLoginMessage('', false);
+  nipaSetLoginStatus(profile.role === 'admin' ? 'Admin account verified ✓' : 'SR account verified ✓');
+
+  // Step 3: optional app initialization. Each part is isolated so one
+  // failing feature cannot prevent the user from entering the app.
+  try { nipaApplyIdentity(profile); }
+  catch(error){ console.error('Identity UI initialization failed after login:', error); }
+
+  try { await nipaRestoreAppState(session.user.id); }
+  catch(error){ console.error('App state restore failed after login:', error); }
+
+  try {
+    if (typeof window.nipaLoadLocalOrdersForProfile === 'function') {
+      window.nipaLoadLocalOrdersForProfile(profile, session.user.id);
+    }
+  } catch(error){ console.error('Local order restore failed after login:', error); }
+
+  try {
+    if (typeof window.nipaLoadScopedLocalData === 'function') {
+      window.nipaLoadScopedLocalData(profile, session.user.id);
+    }
+  } catch(error){ console.error('Scoped local-data restore failed after login:', error); }
+
+  try { await loadCloudOrdersForCurrentUser(); }
+  catch(error){ console.error('Cloud order load failed after login:', error); }
+
+  try { await syncLocalOrdersToCloud(); }
+  catch(error){ console.error('Cloud order sync failed after login:', error); }
+
+  try {
+    if (typeof window.nipaSaveCurrentUserOrders === 'function') {
+      window.nipaSaveCurrentUserOrders();
+    }
+  } catch(error){ console.error('Local order save failed after login:', error); }
 }
 function nipaShowRegister(){
   document.getElementById('nipaLoginPanel')?.classList.add('hidden');
