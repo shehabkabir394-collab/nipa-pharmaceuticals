@@ -698,7 +698,31 @@
     </div>
 
     <!-- ADMIN SR SHOP PAGE -->
-    <div id="adminShopsPage" class="page-content hidden space-y-3">
+    
+<!-- AI FEEDBACK ADMIN PANEL -->
+<div id="nipaAIFeedbackAdmin" class="mt-3 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+  <div class="p-3.5 bg-gradient-to-r from-rose-600 to-orange-500 text-white">
+    <div class="flex items-center justify-between gap-2">
+      <div>
+        <div class="text-sm font-extrabold flex items-center gap-2"><i class="fa-solid fa-bell"></i> AI Feedback / Notifications</div>
+        <div class="text-[10px] text-white/80 mt-1">SR/User-এর সমস্যা ও Feedback এখানে দেখা যাবে</div>
+      </div>
+      <span id="nipaAIFeedbackBadge" class="px-2 py-1 rounded-full bg-white/20 text-[10px] font-black">0 New</span>
+    </div>
+  </div>
+  <div class="p-3">
+    <div class="flex gap-2 mb-2">
+      <button type="button" onclick="nipaAdminLoadAIFeedback(true)" class="flex-1 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-[10px] font-extrabold border border-emerald-100 dark:border-emerald-900/50"><i class="fa-solid fa-rotate mr-1"></i> Refresh</button>
+      <button type="button" onclick="nipaAdminMarkAllFeedbackRead()" class="flex-1 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-extrabold"><i class="fa-solid fa-check-double mr-1"></i> সব Read</button>
+    </div>
+    <div id="nipaAIFeedbackAdminList" class="space-y-2 max-h-[55vh] overflow-y-auto">
+      <div class="text-xs text-slate-500 text-center py-5">Feedback load করতে Refresh চাপুন।</div>
+    </div>
+  </div>
+</div>
+
+
+<div id="adminShopsPage" class="page-content hidden space-y-3">
       <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700">
         <div class="flex items-center justify-between gap-3 mb-3"><div><h2 class="text-sm font-extrabold">SR দোকান ও Delivered Products</h2><p class="text-[10px] text-slate-500 mt-1">দোকানগুলো SR account অনুযায়ী দেখানো হয়েছে। Admin এখান থেকে দোকান যোগ বা edit করতে পারবে না।</p></div><button type="button" onclick="adminRefreshDashboard()" class="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-xs font-bold"><i class="fa-solid fa-rotate mr-1"></i> Refresh</button></div>
         <input id="adminShopSearch" oninput="adminRenderShopDeliveries()" type="search" placeholder="SR / MPO / দোকান / product খুঁজুন" class="w-full mb-3 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs outline-none focus:ring-2 focus:ring-cyan-400">
@@ -1073,6 +1097,72 @@
     </div>
 
   </main>
+
+
+<!-- NIPA AI ASSISTANT + FEEDBACK -->
+<button id="nipaAIFab" type="button" aria-label="Open Nipa AI Assistant" title="Nipa AI Assistant">
+  <i class="fa-solid fa-robot"></i>
+</button>
+
+<div id="nipaAIPanel" aria-hidden="true">
+  <div class="nipa-ai-head">
+    <div class="nipa-ai-head-main">
+      <div class="nipa-ai-avatar"><i class="fa-solid fa-robot"></i></div>
+      <div><div class="nipa-ai-title">Nipa AI Assistant</div><div class="nipa-ai-sub">ওষুধ • App Help • সাধারণ প্রশ্ন</div></div>
+    </div>
+    <button id="nipaAIClose" class="nipa-ai-close" type="button" aria-label="Close">&times;</button>
+  </div>
+  <div id="nipaAIMessages">
+    <div class="nipa-ai-msg bot">আসসালামু আলাইকুম! 👋 আমি Nipa AI Assistant।<br>💊 ওষুধ সম্পর্কে সাধারণ তথ্য<br>📱 App ব্যবহার<br>🛠️ সমস্যা সমাধান<br>💬 সাধারণ প্রশ্ন—সবকিছু নিয়ে জিজ্ঞেস করতে পারেন।</div>
+  </div>
+  <div class="nipa-ai-suggestions">
+    <button class="nipa-ai-suggestion" type="button" data-ai-q="একটি ওষুধ সম্পর্কে সাধারণ তথ্য জানতে চাই">💊 ওষুধের তথ্য</button>
+    <button class="nipa-ai-suggestion" type="button" data-ai-q="New Order কীভাবে করব?">📦 New Order</button>
+    <button class="nipa-ai-suggestion" type="button" data-ai-q="Shop Ledger কীভাবে ব্যবহার করব?">📒 Ledger</button>
+    <button class="nipa-ai-suggestion" type="button" data-ai-q="আমার একটি App সমস্যা হয়েছে">🛠️ সমস্যা</button>
+  </div>
+  <div class="nipa-ai-feedback">
+    <button id="nipaAIFeedbackBtn" type="button"><i class="fa-solid fa-flag mr-1"></i> সমস্যা / Feedback জানান</button>
+  </div>
+  <form id="nipaAIForm">
+    <input id="nipaAIInput" type="text" maxlength="2000" autocomplete="off" placeholder="আপনার প্রশ্ন লিখুন...">
+    <button id="nipaAISend" type="submit" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+  </form>
+</div>
+
+<div id="nipaAIFeedbackModal" class="nipa-ai-feedback-modal" aria-hidden="true">
+  <div class="nipa-ai-feedback-card">
+    <div class="flex items-center justify-between gap-2 mb-2">
+      <div class="font-extrabold text-sm text-slate-800 dark:text-slate-100"><i class="fa-solid fa-flag text-rose-500 mr-1"></i> Feedback / সমস্যা জানান</div>
+      <button type="button" id="nipaAIFeedbackClose" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700">×</button>
+    </div>
+    <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-3">আপনার সমস্যাটি Admin-এর কাছে পাঠানো হবে।</p>
+    <select id="nipaAIFeedbackType" class="w-full mb-2 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs">
+      <option value="app_problem">App-এ সমস্যা</option>
+      <option value="order_problem">New Order সমস্যা</option>
+      <option value="ledger_problem">Ledger সমস্যা</option>
+      <option value="ai_problem">AI সমস্যা</option>
+      <option value="other">অন্যান্য</option>
+    </select>
+    <textarea id="nipaAIFeedbackText" maxlength="3000" rows="5" placeholder="সমস্যাটি বিস্তারিত লিখুন..." class="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs resize-none outline-none"></textarea>
+    <div id="nipaAIFeedbackMsg" class="text-[10px] mt-2 hidden"></div>
+    <button id="nipaAIFeedbackSubmit" type="button" class="w-full mt-2 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-extrabold">
+      <i class="fa-solid fa-paper-plane mr-1"></i> Feedback পাঠান
+    </button>
+  </div>
+</div>
+
+<style id="nipa-ai-feedback-style">
+  .nipa-ai-feedback{padding:8px 10px 3px;background:#f8fafc}
+  .nipa-ai-feedback button{width:100%;border:1px solid #fecaca;background:#fff7f7;color:#dc2626;border-radius:10px;padding:7px;font-size:10px;font-weight:800;cursor:pointer}
+  .nipa-ai-feedback-modal{position:fixed;inset:0;z-index:30050;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;padding:16px}
+  .nipa-ai-feedback-modal.show{display:flex}
+  .nipa-ai-feedback-card{width:min(390px,100%);background:#fff;border-radius:18px;padding:16px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .dark .nipa-ai-feedback-card{background:#1e293b}
+  .nipa-ai-admin-card{border:1px solid #e2e8f0;border-radius:14px;padding:11px;background:#fff}
+  .dark .nipa-ai-admin-card{background:#0f172a;border-color:#334155}
+</style>
+
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
@@ -2420,7 +2510,106 @@
           const x=masterProducts[name];
           rows += '<tr><td>'+sl+++'</td><td>'+excelEsc(name)+'</td><td>'+excelEsc(x.pack)+'</td><td>'+x.mrp.toFixed(2)+'</td><td>'+x.tpVat.toFixed(2)+'</td><td>'+x.qty+'</td><td>'+excelEsc(x.bonusList.join(', ')||'-')+'</td><td>'+x.gross.toFixed(2)+'</td><td>'+x.discount.toFixed(2)+'</td><td>'+x.total.toFixed(2)+'</td></tr>';
         });
-        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table></body></html>';
+        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table>
+<script id="nipa-ai-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fab=$('nipaAIFab'), panel=$('nipaAIPanel'), close=$('nipaAIClose'), form=$('nipaAIForm'), input=$('nipaAIInput'), send=$('nipaAISend'), messages=$('nipaAIMessages');
+  const modal=$('nipaAIFeedbackModal'), feedbackBtn=$('nipaAIFeedbackBtn'), feedbackClose=$('nipaAIFeedbackClose'), feedbackSubmit=$('nipaAIFeedbackSubmit');
+  if(!fab||!panel||!form||!input||!send||!messages) return;
+
+  function openAI(){panel.classList.add('show');panel.setAttribute('aria-hidden','false');setTimeout(()=>input.focus(),50);}
+  function closeAI(){panel.classList.remove('show');panel.setAttribute('aria-hidden','true');}
+  function addMessage(text,type){const el=document.createElement('div');el.className='nipa-ai-msg '+type;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;}
+  async function ask(message){
+    const q=String(message||'').trim(); if(!q)return;
+    addMessage(q,'user');input.value='';const typing=addMessage('ভাবছি…','bot nipa-ai-typing');
+    send.disabled=true;input.disabled=true;
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
+      const data=await r.json().catch(()=>({}));typing.remove();
+      if(!r.ok)throw new Error(data.error||('AI request failed ('+r.status+')'));
+      addMessage(data.reply||'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।','bot');
+    }catch(e){typing.remove();addMessage('AI error: '+(e?.message||'Unknown error')+'\nCloudflare Function / GEMINI_API_KEY check করুন।','bot');console.error('Nipa AI:',e);}
+    finally{send.disabled=false;input.disabled=false;input.focus();}
+  }
+
+  fab.addEventListener('click',()=>panel.classList.contains('show')?closeAI():openAI());
+  close?.addEventListener('click',closeAI);
+  form.addEventListener('submit',e=>{e.preventDefault();ask(input.value);});
+  document.querySelectorAll('[data-ai-q]').forEach(btn=>btn.addEventListener('click',()=>ask(btn.getAttribute('data-ai-q'))));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(panel.classList.contains('show'))closeAI();if(modal?.classList.contains('show'))closeFeedback();}});
+
+  function openFeedback(){if(!modal)return;modal.classList.add('show');modal.setAttribute('aria-hidden','false');$('nipaAIFeedbackText').focus();}
+  function closeFeedback(){if(!modal)return;modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}
+  feedbackBtn?.addEventListener('click',openFeedback);feedbackClose?.addEventListener('click',closeFeedback);
+
+  feedbackSubmit?.addEventListener('click',async function(){
+    const text=($('nipaAIFeedbackText')?.value||'').trim(), type=$('nipaAIFeedbackType')?.value||'other', msg=$('nipaAIFeedbackMsg');
+    if(!text){if(msg){msg.textContent='দয়া করে সমস্যাটি লিখুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
+    const user=window.nipaCurrentUser||{}, profile=window.nipaCurrentProfile||{};
+    if(!user.id||!window.nipaSupabase){if(msg){msg.textContent='Login session পাওয়া যায়নি। আবার Login করুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
+    feedbackSubmit.disabled=true;feedbackSubmit.textContent='পাঠানো হচ্ছে…';
+    try{
+      const payload={user_id:user.id,user_name:profile.full_name||user.email||'User',user_email:profile.email||user.email||'',mpo_code:profile.mpo_code||'',feedback_type:type,message:text,status:'new',is_read:false,created_at:new Date().toISOString()};
+      const {error}=await window.nipaSupabase.from('ai_feedback').insert(payload);
+      if(error)throw error;
+      if(msg){msg.textContent='Feedback Admin-এর কাছে পাঠানো হয়েছে ✓';msg.className='text-[10px] mt-2 text-emerald-600';msg.classList.remove('hidden');}
+      $('nipaAIFeedbackText').value='';
+      setTimeout(closeFeedback,700);
+    }catch(e){
+      console.error('Nipa AI feedback error:',e);
+      if(msg){msg.textContent='Feedback পাঠানো যায়নি: '+(e.message||'Supabase error');msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}
+    }finally{feedbackSubmit.disabled=false;feedbackSubmit.innerHTML='<i class="fa-solid fa-paper-plane mr-1"></i> Feedback পাঠান';}
+  });
+
+  function isAdmin(){return window.nipaCurrentProfile?.role==='admin';}
+  window.nipaAdminLoadAIFeedback=async function(force){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    const list=$('nipaAIFeedbackAdminList'),badge=$('nipaAIFeedbackBadge');if(!list)return;
+    try{
+      const {data,error}=await window.nipaSupabase.from('ai_feedback').select('id,user_id,user_name,user_email,mpo_code,feedback_type,message,status,is_read,created_at').order('created_at',{ascending:false}).limit(100);
+      if(error)throw error;
+      const rows=data||[], unread=rows.filter(x=>!x.is_read&&x.status!=='resolved').length;
+      if(badge)badge.textContent=unread+' New';
+      if(!rows.length){list.innerHTML='<div class="text-xs text-slate-500 text-center py-5">কোনো Feedback নেই।</div>';return;}
+      list.innerHTML=rows.map(function(x){
+        const date=x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'';
+        const unreadClass=!x.is_read?'border-rose-300 bg-rose-50/40 dark:bg-rose-950/20':'';
+        return '<div class="nipa-ai-admin-card '+unreadClass+'">'+
+          '<div class="flex justify-between gap-2"><div class="min-w-0"><div class="font-black text-xs">'+esc(x.user_name||'User')+'</div><div class="text-[9px] text-slate-500">MPO: '+esc(x.mpo_code||'—')+' • '+esc(x.user_email||'')+'</div></div>'+
+          '<span class="text-[9px] font-bold '+(x.status==='resolved'?'text-emerald-600':'text-rose-600')+'">'+esc(x.status||'new')+'</span></div>'+
+          '<div class="text-[9px] text-slate-400 mt-1">'+esc(date)+' • '+esc(x.feedback_type||'other')+'</div>'+
+          '<div class="text-[11px] leading-5 mt-2 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">'+esc(x.message||'')+'</div>'+
+          '<div class="flex gap-1 mt-2">'+
+          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'read\')" class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-[9px] font-bold">Read</button>'+
+          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'resolved\')" class="flex-1 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold">Resolved</button>'+
+          '</div></div>';
+      }).join('');
+    }catch(e){console.error('Admin feedback load:',e);list.innerHTML='<div class="text-xs text-red-600 bg-red-50 rounded-xl p-3">Feedback load হয়নি: '+esc(e.message||e)+'</div>';}
+  };
+  window.nipaAdminSetFeedbackStatus=async function(id,status){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    try{
+      const patch=status==='read'?{status:'read',is_read:true}:{status:'resolved',is_read:true,status_updated_at:new Date().toISOString()};
+      const {error}=await window.nipaSupabase.from('ai_feedback').update(patch).eq('id',id);if(error)throw error;
+      window.nipaAdminLoadAIFeedback(true);
+    }catch(e){alert('Feedback update হয়নি: '+(e.message||e));}
+  };
+  window.nipaAdminMarkAllFeedbackRead=async function(){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    try{const {error}=await window.nipaSupabase.from('ai_feedback').update({status:'read',is_read:true}).eq('is_read',false);if(error)throw error;window.nipaAdminLoadAIFeedback(true);}
+    catch(e){alert('সব Feedback Read করা যায়নি: '+(e.message||e));}
+  };
+
+  document.addEventListener('nipa:profile-ready',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),250);});
+  document.addEventListener('DOMContentLoaded',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),800);});
+  setInterval(function(){if(isAdmin()&&document.visibilityState==='visible')window.nipaAdminLoadAIFeedback(false);},30000);
+})();
+</script>
+
+</body></html>';
         const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
         const filename='Nipa_Pharma_Requisition_'+getLocalDateKey()+'.xls';
         forceBrowserDownload(blob,filename);
