@@ -2464,7 +2464,7 @@
     addMessage(q,'user'); input.value='';
     const typing=addMessage('ভাবছি…','bot nipa-ai-typing'); send.disabled=true; input.disabled=true;
     try{
-      const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
       const data=await r.json().catch(()=>({}));
       typing.remove();
       if(!r.ok) throw new Error(data.error||('AI request failed ('+r.status+')'));
