@@ -2511,103 +2511,7 @@
           rows += '<tr><td>'+sl+++'</td><td>'+excelEsc(name)+'</td><td>'+excelEsc(x.pack)+'</td><td>'+x.mrp.toFixed(2)+'</td><td>'+x.tpVat.toFixed(2)+'</td><td>'+x.qty+'</td><td>'+excelEsc(x.bonusList.join(', ')||'-')+'</td><td>'+x.gross.toFixed(2)+'</td><td>'+x.discount.toFixed(2)+'</td><td>'+x.total.toFixed(2)+'</td></tr>';
         });
         const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table>
-<script id="nipa-ai-script">
-(function(){
-  const $=id=>document.getElementById(id);
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const fab=$('nipaAIFab'), panel=$('nipaAIPanel'), close=$('nipaAIClose'), form=$('nipaAIForm'), input=$('nipaAIInput'), send=$('nipaAISend'), messages=$('nipaAIMessages');
-  const modal=$('nipaAIFeedbackModal'), feedbackBtn=$('nipaAIFeedbackBtn'), feedbackClose=$('nipaAIFeedbackClose'), feedbackSubmit=$('nipaAIFeedbackSubmit');
-  if(!fab||!panel||!form||!input||!send||!messages) return;
 
-  function openAI(){panel.classList.add('show');panel.setAttribute('aria-hidden','false');setTimeout(()=>input.focus(),50);}
-  function closeAI(){panel.classList.remove('show');panel.setAttribute('aria-hidden','true');}
-  function addMessage(text,type){const el=document.createElement('div');el.className='nipa-ai-msg '+type;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;}
-  async function ask(message){
-    const q=String(message||'').trim(); if(!q)return;
-    addMessage(q,'user');input.value='';const typing=addMessage('ভাবছি…','bot nipa-ai-typing');
-    send.disabled=true;input.disabled=true;
-    try{
-      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
-      const data=await r.json().catch(()=>({}));typing.remove();
-      if(!r.ok)throw new Error(data.error||('AI request failed ('+r.status+')'));
-      addMessage(data.reply||'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।','bot');
-    }catch(e){typing.remove();addMessage('AI error: '+(e?.message||'Unknown error')+'\nCloudflare Function / GEMINI_API_KEY check করুন।','bot');console.error('Nipa AI:',e);}
-    finally{send.disabled=false;input.disabled=false;input.focus();}
-  }
-
-  fab.addEventListener('click',()=>panel.classList.contains('show')?closeAI():openAI());
-  close?.addEventListener('click',closeAI);
-  form.addEventListener('submit',e=>{e.preventDefault();ask(input.value);});
-  document.querySelectorAll('[data-ai-q]').forEach(btn=>btn.addEventListener('click',()=>ask(btn.getAttribute('data-ai-q'))));
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(panel.classList.contains('show'))closeAI();if(modal?.classList.contains('show'))closeFeedback();}});
-
-  function openFeedback(){if(!modal)return;modal.classList.add('show');modal.setAttribute('aria-hidden','false');$('nipaAIFeedbackText').focus();}
-  function closeFeedback(){if(!modal)return;modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}
-  feedbackBtn?.addEventListener('click',openFeedback);feedbackClose?.addEventListener('click',closeFeedback);
-
-  feedbackSubmit?.addEventListener('click',async function(){
-    const text=($('nipaAIFeedbackText')?.value||'').trim(), type=$('nipaAIFeedbackType')?.value||'other', msg=$('nipaAIFeedbackMsg');
-    if(!text){if(msg){msg.textContent='দয়া করে সমস্যাটি লিখুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
-    const user=window.nipaCurrentUser||{}, profile=window.nipaCurrentProfile||{};
-    if(!user.id||!window.nipaSupabase){if(msg){msg.textContent='Login session পাওয়া যায়নি। আবার Login করুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
-    feedbackSubmit.disabled=true;feedbackSubmit.textContent='পাঠানো হচ্ছে…';
-    try{
-      const payload={user_id:user.id,user_name:profile.full_name||user.email||'User',user_email:profile.email||user.email||'',mpo_code:profile.mpo_code||'',feedback_type:type,message:text,status:'new',is_read:false,created_at:new Date().toISOString()};
-      const {error}=await window.nipaSupabase.from('ai_feedback').insert(payload);
-      if(error)throw error;
-      if(msg){msg.textContent='Feedback Admin-এর কাছে পাঠানো হয়েছে ✓';msg.className='text-[10px] mt-2 text-emerald-600';msg.classList.remove('hidden');}
-      $('nipaAIFeedbackText').value='';
-      setTimeout(closeFeedback,700);
-    }catch(e){
-      console.error('Nipa AI feedback error:',e);
-      if(msg){msg.textContent='Feedback পাঠানো যায়নি: '+(e.message||'Supabase error');msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}
-    }finally{feedbackSubmit.disabled=false;feedbackSubmit.innerHTML='<i class="fa-solid fa-paper-plane mr-1"></i> Feedback পাঠান';}
-  });
-
-  function isAdmin(){return window.nipaCurrentProfile?.role==='admin';}
-  window.nipaAdminLoadAIFeedback=async function(force){
-    if(!isAdmin()||!window.nipaSupabase)return;
-    const list=$('nipaAIFeedbackAdminList'),badge=$('nipaAIFeedbackBadge');if(!list)return;
-    try{
-      const {data,error}=await window.nipaSupabase.from('ai_feedback').select('id,user_id,user_name,user_email,mpo_code,feedback_type,message,status,is_read,created_at').order('created_at',{ascending:false}).limit(100);
-      if(error)throw error;
-      const rows=data||[], unread=rows.filter(x=>!x.is_read&&x.status!=='resolved').length;
-      if(badge)badge.textContent=unread+' New';
-      if(!rows.length){list.innerHTML='<div class="text-xs text-slate-500 text-center py-5">কোনো Feedback নেই।</div>';return;}
-      list.innerHTML=rows.map(function(x){
-        const date=x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'';
-        const unreadClass=!x.is_read?'border-rose-300 bg-rose-50/40 dark:bg-rose-950/20':'';
-        return '<div class="nipa-ai-admin-card '+unreadClass+'">'+
-          '<div class="flex justify-between gap-2"><div class="min-w-0"><div class="font-black text-xs">'+esc(x.user_name||'User')+'</div><div class="text-[9px] text-slate-500">MPO: '+esc(x.mpo_code||'—')+' • '+esc(x.user_email||'')+'</div></div>'+
-          '<span class="text-[9px] font-bold '+(x.status==='resolved'?'text-emerald-600':'text-rose-600')+'">'+esc(x.status||'new')+'</span></div>'+
-          '<div class="text-[9px] text-slate-400 mt-1">'+esc(date)+' • '+esc(x.feedback_type||'other')+'</div>'+
-          '<div class="text-[11px] leading-5 mt-2 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">'+esc(x.message||'')+'</div>'+
-          '<div class="flex gap-1 mt-2">'+
-          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'read\')" class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-[9px] font-bold">Read</button>'+
-          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'resolved\')" class="flex-1 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold">Resolved</button>'+
-          '</div></div>';
-      }).join('');
-    }catch(e){console.error('Admin feedback load:',e);list.innerHTML='<div class="text-xs text-red-600 bg-red-50 rounded-xl p-3">Feedback load হয়নি: '+esc(e.message||e)+'</div>';}
-  };
-  window.nipaAdminSetFeedbackStatus=async function(id,status){
-    if(!isAdmin()||!window.nipaSupabase)return;
-    try{
-      const patch=status==='read'?{status:'read',is_read:true}:{status:'resolved',is_read:true,status_updated_at:new Date().toISOString()};
-      const {error}=await window.nipaSupabase.from('ai_feedback').update(patch).eq('id',id);if(error)throw error;
-      window.nipaAdminLoadAIFeedback(true);
-    }catch(e){alert('Feedback update হয়নি: '+(e.message||e));}
-  };
-  window.nipaAdminMarkAllFeedbackRead=async function(){
-    if(!isAdmin()||!window.nipaSupabase)return;
-    try{const {error}=await window.nipaSupabase.from('ai_feedback').update({status:'read',is_read:true}).eq('is_read',false);if(error)throw error;window.nipaAdminLoadAIFeedback(true);}
-    catch(e){alert('সব Feedback Read করা যায়নি: '+(e.message||e));}
-  };
-
-  document.addEventListener('nipa:profile-ready',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),250);});
-  document.addEventListener('DOMContentLoaded',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),800);});
-  setInterval(function(){if(isAdmin()&&document.visibilityState==='visible')window.nipaAdminLoadAIFeedback(false);},30000);
-})();
-</script>
 
 </body></html>';
         const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
@@ -3612,6 +3516,103 @@ window.nipaSupabase = nipaSupabase;
   window.nipaOpenHelp=function(){const email=window.nipaCurrentProfile?.email||window.nipaCurrentUser?.email||'';showModal('সাহায্য ও সাপোর্ট',`<div class="space-y-3 text-xs leading-5"><p class="font-bold text-slate-800 dark:text-slate-100">অ্যাপ ব্যবহার</p><p>নতুন অর্ডার করতে নিচের “New Order” থেকে দোকান ও পণ্য নির্বাচন করুন। অর্ডারের অবস্থা “History” এবং দোকানের বাকি “Shop Ledger”-এ দেখুন।</p><div class="rounded-xl bg-emerald-50 dark:bg-slate-800 p-3"><b>লগইন অ্যাকাউন্ট</b><div class="break-all text-slate-600 dark:text-slate-300">${esc(email||'—')}</div></div><p>অ্যাকাউন্ট বা ডেটা সংক্রান্ত সমস্যায় আপনার প্রতিষ্ঠানের অ্যাপ Admin-এর সঙ্গে যোগাযোগ করুন।</p></div>`);};
   document.addEventListener('nipa:profile-ready',function(){refresh();const pref=localStorage.getItem('nipa_theme_user_'+uid());if(pref){document.documentElement.classList.toggle('dark',pref==='dark');refresh();}});
   document.addEventListener('DOMContentLoaded',refresh);
+})();
+</script>
+<script id="nipa-ai-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fab=$('nipaAIFab'), panel=$('nipaAIPanel'), close=$('nipaAIClose'), form=$('nipaAIForm'), input=$('nipaAIInput'), send=$('nipaAISend'), messages=$('nipaAIMessages');
+  const modal=$('nipaAIFeedbackModal'), feedbackBtn=$('nipaAIFeedbackBtn'), feedbackClose=$('nipaAIFeedbackClose'), feedbackSubmit=$('nipaAIFeedbackSubmit');
+  if(!fab||!panel||!form||!input||!send||!messages) return;
+
+  function openAI(){panel.classList.add('show');panel.setAttribute('aria-hidden','false');setTimeout(()=>input.focus(),50);}
+  function closeAI(){panel.classList.remove('show');panel.setAttribute('aria-hidden','true');}
+  function addMessage(text,type){const el=document.createElement('div');el.className='nipa-ai-msg '+type;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el;}
+  async function ask(message){
+    const q=String(message||'').trim(); if(!q)return;
+    addMessage(q,'user');input.value='';const typing=addMessage('ভাবছি…','bot nipa-ai-typing');
+    send.disabled=true;input.disabled=true;
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:q})});
+      const data=await r.json().catch(()=>({}));typing.remove();
+      if(!r.ok)throw new Error(data.error||('AI request failed ('+r.status+')'));
+      addMessage(data.reply||'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।','bot');
+    }catch(e){typing.remove();addMessage('AI error: '+(e?.message||'Unknown error')+'\nCloudflare Function / GEMINI_API_KEY check করুন।','bot');console.error('Nipa AI:',e);}
+    finally{send.disabled=false;input.disabled=false;input.focus();}
+  }
+
+  fab.addEventListener('click',()=>panel.classList.contains('show')?closeAI():openAI());
+  close?.addEventListener('click',closeAI);
+  form.addEventListener('submit',e=>{e.preventDefault();ask(input.value);});
+  document.querySelectorAll('[data-ai-q]').forEach(btn=>btn.addEventListener('click',()=>ask(btn.getAttribute('data-ai-q'))));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(panel.classList.contains('show'))closeAI();if(modal?.classList.contains('show'))closeFeedback();}});
+
+  function openFeedback(){if(!modal)return;modal.classList.add('show');modal.setAttribute('aria-hidden','false');$('nipaAIFeedbackText').focus();}
+  function closeFeedback(){if(!modal)return;modal.classList.remove('show');modal.setAttribute('aria-hidden','true');}
+  feedbackBtn?.addEventListener('click',openFeedback);feedbackClose?.addEventListener('click',closeFeedback);
+
+  feedbackSubmit?.addEventListener('click',async function(){
+    const text=($('nipaAIFeedbackText')?.value||'').trim(), type=$('nipaAIFeedbackType')?.value||'other', msg=$('nipaAIFeedbackMsg');
+    if(!text){if(msg){msg.textContent='দয়া করে সমস্যাটি লিখুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
+    const user=window.nipaCurrentUser||{}, profile=window.nipaCurrentProfile||{};
+    if(!user.id||!window.nipaSupabase){if(msg){msg.textContent='Login session পাওয়া যায়নি। আবার Login করুন।';msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}return;}
+    feedbackSubmit.disabled=true;feedbackSubmit.textContent='পাঠানো হচ্ছে…';
+    try{
+      const payload={user_id:user.id,user_name:profile.full_name||user.email||'User',user_email:profile.email||user.email||'',mpo_code:profile.mpo_code||'',feedback_type:type,message:text,status:'new',is_read:false,created_at:new Date().toISOString()};
+      const {error}=await window.nipaSupabase.from('ai_feedback').insert(payload);
+      if(error)throw error;
+      if(msg){msg.textContent='Feedback Admin-এর কাছে পাঠানো হয়েছে ✓';msg.className='text-[10px] mt-2 text-emerald-600';msg.classList.remove('hidden');}
+      $('nipaAIFeedbackText').value='';
+      setTimeout(closeFeedback,700);
+    }catch(e){
+      console.error('Nipa AI feedback error:',e);
+      if(msg){msg.textContent='Feedback পাঠানো যায়নি: '+(e.message||'Supabase error');msg.className='text-[10px] mt-2 text-red-600';msg.classList.remove('hidden');}
+    }finally{feedbackSubmit.disabled=false;feedbackSubmit.innerHTML='<i class="fa-solid fa-paper-plane mr-1"></i> Feedback পাঠান';}
+  });
+
+  function isAdmin(){return window.nipaCurrentProfile?.role==='admin';}
+  window.nipaAdminLoadAIFeedback=async function(force){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    const list=$('nipaAIFeedbackAdminList'),badge=$('nipaAIFeedbackBadge');if(!list)return;
+    try{
+      const {data,error}=await window.nipaSupabase.from('ai_feedback').select('id,user_id,user_name,user_email,mpo_code,feedback_type,message,status,is_read,created_at').order('created_at',{ascending:false}).limit(100);
+      if(error)throw error;
+      const rows=data||[], unread=rows.filter(x=>!x.is_read&&x.status!=='resolved').length;
+      if(badge)badge.textContent=unread+' New';
+      if(!rows.length){list.innerHTML='<div class="text-xs text-slate-500 text-center py-5">কোনো Feedback নেই।</div>';return;}
+      list.innerHTML=rows.map(function(x){
+        const date=x.created_at?new Date(x.created_at).toLocaleString('bn-BD'):'';
+        const unreadClass=!x.is_read?'border-rose-300 bg-rose-50/40 dark:bg-rose-950/20':'';
+        return '<div class="nipa-ai-admin-card '+unreadClass+'">'+
+          '<div class="flex justify-between gap-2"><div class="min-w-0"><div class="font-black text-xs">'+esc(x.user_name||'User')+'</div><div class="text-[9px] text-slate-500">MPO: '+esc(x.mpo_code||'—')+' • '+esc(x.user_email||'')+'</div></div>'+
+          '<span class="text-[9px] font-bold '+(x.status==='resolved'?'text-emerald-600':'text-rose-600')+'">'+esc(x.status||'new')+'</span></div>'+
+          '<div class="text-[9px] text-slate-400 mt-1">'+esc(date)+' • '+esc(x.feedback_type||'other')+'</div>'+
+          '<div class="text-[11px] leading-5 mt-2 text-slate-700 dark:text-slate-200 whitespace-pre-wrap">'+esc(x.message||'')+'</div>'+
+          '<div class="flex gap-1 mt-2">'+
+          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'read\')" class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-[9px] font-bold">Read</button>'+
+          '<button type="button" onclick="nipaAdminSetFeedbackStatus(\''+esc(x.id)+'\',\'resolved\')" class="flex-1 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 text-[9px] font-bold">Resolved</button>'+
+          '</div></div>';
+      }).join('');
+    }catch(e){console.error('Admin feedback load:',e);list.innerHTML='<div class="text-xs text-red-600 bg-red-50 rounded-xl p-3">Feedback load হয়নি: '+esc(e.message||e)+'</div>';}
+  };
+  window.nipaAdminSetFeedbackStatus=async function(id,status){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    try{
+      const patch=status==='read'?{status:'read',is_read:true}:{status:'resolved',is_read:true,status_updated_at:new Date().toISOString()};
+      const {error}=await window.nipaSupabase.from('ai_feedback').update(patch).eq('id',id);if(error)throw error;
+      window.nipaAdminLoadAIFeedback(true);
+    }catch(e){alert('Feedback update হয়নি: '+(e.message||e));}
+  };
+  window.nipaAdminMarkAllFeedbackRead=async function(){
+    if(!isAdmin()||!window.nipaSupabase)return;
+    try{const {error}=await window.nipaSupabase.from('ai_feedback').update({status:'read',is_read:true}).eq('is_read',false);if(error)throw error;window.nipaAdminLoadAIFeedback(true);}
+    catch(e){alert('সব Feedback Read করা যায়নি: '+(e.message||e));}
+  };
+
+  document.addEventListener('nipa:profile-ready',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),250);});
+  document.addEventListener('DOMContentLoaded',function(){if(isAdmin())setTimeout(()=>window.nipaAdminLoadAIFeedback(true),800);});
+  setInterval(function(){if(isAdmin()&&document.visibilityState==='visible')window.nipaAdminLoadAIFeedback(false);},30000);
 })();
 </script>
 </body>
