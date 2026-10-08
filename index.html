@@ -2957,27 +2957,43 @@ async function nipaHandleSession(session){
     const profile = await nipaLoadProfile(session.user.id);
     if (!profile || profile.active !== true){
       await nipaSupabase.auth.signOut();
-      nipaSetLoginMessage('আপনার account inactive। Admin-এর সাথে যোগাযোগ করুন।', true);
+      nipaSetLoginMessage(!profile ? 'আপনার profile পাওয়া যায়নি। Supabase profiles-এ এই account-এর row আছে কিনা দেখুন।' : 'আপনার account inactive। Admin-এর সাথে যোগাযোগ করুন।', true);
       nipaShowLogin(); return;
     }
+
+    // Authentication/profile is successful. Set the user identity first so
+    // a later cloud-data error can never be reported as a profile error.
     nipaCurrentUser = session.user; window.nipaCurrentUser = session.user;
     nipaApplyIdentity(profile);
-    // Restore this account's saved app data before building its local views.
-    await nipaRestoreAppState(session.user.id);
-    // IMPORTANT: never reuse another account's local order/ledger data.
-    // Admin gets a clean local order view; SR gets only their own user-scoped local data.
+
+    // Restore this account's saved app state. A cloud-state failure should
+    // not block login; local app data can still be used.
+    try { await nipaRestoreAppState(session.user.id); }
+    catch(error){ console.error('App state restore failed after login:', error); }
+
     nipaLoadLocalOrdersForProfile(profile, session.user.id);
     nipaLoadScopedLocalData(profile, session.user.id);
-    await loadCloudOrdersForCurrentUser();
-    await syncLocalOrdersToCloud();
+
+    // Cloud order sync is optional after authentication. Do not sign the
+    // user out if a data-sync/RLS/network error happens here.
+    try { await loadCloudOrdersForCurrentUser(); }
+    catch(error){ console.error('Cloud order load failed after login:', error); }
+    try { await syncLocalOrdersToCloud(); }
+    catch(error){ console.error('Cloud order sync failed after login:', error); }
     nipaSaveCurrentUserOrders();
+
     nipaSetLoginMessage('', false);
     nipaSetLoginStatus(profile.role === 'admin' ? 'Admin account verified ✓' : 'SR account verified ✓');
     nipaHideLogin();
   } catch(error){
-    console.error('Profile load error:', error);
+    console.error('Authentication/profile error:', error);
+    // Only this block handles the actual auth/profile stage. Do not label
+    // app-data sync errors as "Profile পাওয়া যায়নি".
     await nipaSupabase.auth.signOut();
-    nipaSetLoginMessage('Profile পাওয়া যায়নি। Supabase profiles setup/check করুন।', true);
+    const msg = String(error?.message || error || '');
+    nipaSetLoginMessage(/profiles|profile/i.test(msg)
+      ? 'Profile পাওয়া যায়নি। Supabase profiles setup/check করুন।'
+      : 'Login-এর সময় একটি সমস্যা হয়েছে। আবার চেষ্টা করুন।', true);
     nipaShowLogin();
   }
 }
