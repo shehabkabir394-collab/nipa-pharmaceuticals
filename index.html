@@ -1411,6 +1411,7 @@
       }
       ordersHistory=Array.isArray(saved)?saved:[];
     }
+    window.nipaLoadLocalOrdersForProfile = nipaLoadLocalOrdersForProfile;
     function nipaSaveCurrentUserOrders(){
       const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;
       if(window.nipaCurrentProfile?.role!=='sr' || !uid) return;
@@ -3019,7 +3020,11 @@ async function nipaHandleSession(session){
     try { await nipaRestoreAppState(session.user.id); }
     catch(error){ console.error('App state restore failed after login:', error); }
 
-    nipaLoadLocalOrdersForProfile(profile, session.user.id);
+    if (typeof window.nipaLoadLocalOrdersForProfile === 'function') {
+      window.nipaLoadLocalOrdersForProfile(profile, session.user.id);
+    } else {
+      console.error('NIPA order loader is unavailable; keeping current orders state.');
+    }
     nipaLoadScopedLocalData(profile, session.user.id);
 
     // Cloud order sync is optional after authentication. Do not sign the
