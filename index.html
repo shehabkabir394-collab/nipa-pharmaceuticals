@@ -1413,6 +1413,7 @@
       ordersHistory=Array.isArray(saved)?saved:[];
     }
     window.nipaLoadLocalOrdersForProfile = nipaLoadLocalOrdersForProfile;
+    window.nipaSaveCurrentUserOrders = nipaSaveCurrentUserOrders;
     function nipaSaveCurrentUserOrders(){
       const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;
       if(window.nipaCurrentProfile?.role!=='sr' || !uid) return;
@@ -1427,7 +1428,11 @@
         const cloudOrders=(data||[]).map(r=>r.order_json).filter(Boolean), map={};
         (ordersHistory||[]).forEach(o=>map[String(o.id)]=o); cloudOrders.forEach(o=>map[String(o.id)]=o);
         ordersHistory=Object.values(map).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
-        nipaSaveCurrentUserOrders();
+        if (typeof window.nipaSaveCurrentUserOrders === 'function') {
+      window.nipaSaveCurrentUserOrders();
+    } else {
+      console.error('NIPA current-user order saver is unavailable; continuing without local order save.');
+    }
       } catch(e){ console.error('Cloud order history load failed:',e); }
     }
     async function updateCloudOrderStatus(order){ await syncOrderToCloud(order); }
