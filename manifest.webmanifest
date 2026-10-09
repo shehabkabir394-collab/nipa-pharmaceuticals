@@ -1,0 +1,19 @@
+{
+  "name": "MPO Order - Nipa Pharmaceuticals Ltd.",
+  "short_name": "MPO Order",
+  "description": "Nipa Pharmaceuticals MPO ordering app",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#007f3f",
+  "lang": "bn",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
