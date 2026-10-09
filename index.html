@@ -385,6 +385,7 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <button id="nipaMessageBell" onclick="nipaOpenMessages()" class="relative w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white" title="বার্তা"><i class="fa-solid fa-envelope"></i><span id="nipaUnreadBadge" class="hidden absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white"></span></button>
         <button onclick="toggleDarkMode()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-amber-300 transition-all" title="Toggle Theme">
           <i id="themeIcon" class="fa-solid fa-moon"></i>
         </button>
@@ -450,6 +451,9 @@
       <button onclick="nipaOpenProfile(); toggleSideMenu()" class="w-full px-3 py-2.5 rounded-xl text-left hover:bg-slate-800 flex items-center gap-3 font-medium text-slate-200 transition-all">
         <i class="fa-solid fa-user-gear text-emerald-400 w-5"></i> Profile
       </button>
+      <button onclick="nipaOpenMessages(); toggleSideMenu()" class="w-full px-3 py-2.5 rounded-xl text-left hover:bg-slate-800 flex items-center gap-3 font-medium text-slate-200 transition-all">
+        <i class="fa-solid fa-envelope text-sky-400 w-5"></i> বার্তা / Messages <span id="nipaDrawerUnreadBadge" class="hidden ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-black text-white"></span>
+      </button>
 
       <div class="pt-3 border-t border-slate-800 mt-3">
         <div class="px-3 text-[10px] uppercase font-bold text-slate-500 mb-1">Preferences</div>
@@ -512,6 +516,12 @@
             <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">New Order</span>
           </button>
 
+          <button onclick="nipaOpenMessages()" class="relative bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700/50 p-3 rounded-2xl border border-sky-200 dark:border-slate-700 shadow-sm text-center transition-all group">
+            <span id="nipaHomeUnreadBadge" class="hidden absolute top-1 right-1 min-w-4 h-4 rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white"></span>
+            <div class="w-10 h-10 mx-auto rounded-xl bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 flex items-center justify-center text-lg mb-1.5 group-hover:scale-110 transition-transform"><i class="fa-solid fa-envelope"></i></div>
+            <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200 block">Messages</span>
+          </button>
+
           <button onclick="navTo('orderHistoryPage')" class="bg-white dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-slate-700/50 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm text-center transition-all group">
             <div class="w-10 h-10 mx-auto rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center text-lg mb-1.5 group-hover:scale-110 transition-transform">
               <i class="fa-solid fa-clock-rotate-left"></i>
@@ -569,6 +579,19 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- MESSAGES PAGE -->
+    <div id="messagesPage" class="page-content hidden space-y-3">
+      <div class="rounded-2xl bg-gradient-to-r from-emerald-800 to-green-600 text-white px-4 py-4 flex items-center justify-between shadow-sm"><div class="flex items-center gap-3"><button onclick="navTo('dashboardPage')" class="w-9 h-9 rounded-xl bg-white/15" aria-label="Back"><i class="fa-solid fa-arrow-left"></i></button><div><h2 class="font-extrabold text-base">বার্তা</h2><p class="text-[10px] text-emerald-100">MPO ও Admin-এর সঙ্গে যোগাযোগ</p></div></div><button onclick="nipaNewMessage()" class="rounded-xl bg-white/15 px-3 py-2 text-xs font-bold"><i class="fa-solid fa-pen-to-square mr-1"></i> নতুন</button></div>
+      <div id="nipaMessageNotice" class="hidden rounded-xl p-3 text-xs"></div>
+      <div id="nipaNewMessageBox" class="hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 shadow-sm"><label class="text-[11px] font-bold">যাকে মেসেজ পাঠাবেন</label><select id="nipaMessageRecipient" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm"></select><button onclick="nipaStartConversation()" class="mt-2 w-full rounded-xl bg-emerald-700 py-2.5 text-xs font-bold text-white">চ্যাট খুলুন</button></div>
+      <div id="nipaMessageInbox" class="space-y-2"></div>
+      <div id="nipaConversation" class="hidden rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+        <div class="p-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2"><button onclick="nipaBackToInbox()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700" aria-label="Back to inbox"><i class="fa-solid fa-arrow-left"></i></button><div class="min-w-0"><b id="nipaConversationName" class="block text-xs truncate"></b><small id="nipaConversationRole" class="text-[10px] text-slate-500"></small></div></div>
+        <div id="nipaConversationMessages" class="h-[48vh] min-h-64 overflow-y-auto p-3 space-y-2 bg-slate-50 dark:bg-slate-950"></div>
+        <form onsubmit="return nipaSendMessage(event)" class="border-t border-slate-200 dark:border-slate-700 p-2 flex items-end gap-2"><textarea id="nipaMessageInput" maxlength="4000" rows="1" placeholder="মেসেজ লিখুন…" class="flex-1 resize-none rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-xs outline-none focus:border-emerald-600"></textarea><button id="nipaMessageSend" class="h-10 w-11 rounded-xl bg-emerald-700 text-white" aria-label="পাঠান"><i class="fa-solid fa-paper-plane"></i></button></form>
+      </div>
     </div>
 
     <!-- PROFILE PAGE -->
@@ -2598,6 +2621,7 @@
     </div>
   </section>
 
+  <button id="nipaMessageFloat" onclick="nipaOpenMessages()" aria-label="বার্তা খুলুন" class="fixed right-4 bottom-[76px] z-[10000] h-12 w-12 rounded-full bg-emerald-700 text-white shadow-xl border-2 border-white flex items-center justify-center active:scale-95"><i class="fa-solid fa-envelope"></i><span id="nipaFloatUnreadBadge" class="hidden absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 px-1 text-[9px] font-black leading-4 text-white"></span></button>
   <!-- Mobile Bottom Navigation -->
   <nav id="bottomNav" class="bottom-nav">
     <button id="bottomHome" class="active" onclick="bottomNavTo('dashboardPage', this)">
@@ -3361,6 +3385,60 @@ window.nipaSupabase = nipaSupabase;
   window.nipaOpenHelp=function(){const email=window.nipaCurrentProfile?.email||window.nipaCurrentUser?.email||'';showModal('সাহায্য ও সাপোর্ট',`<div class="space-y-3 text-xs leading-5"><p class="font-bold text-slate-800 dark:text-slate-100">অ্যাপ ব্যবহার</p><p>নতুন অর্ডার করতে নিচের “New Order” থেকে দোকান ও পণ্য নির্বাচন করুন। অর্ডারের অবস্থা “History” এবং দোকানের বাকি “Shop Ledger”-এ দেখুন।</p><div class="rounded-xl bg-emerald-50 dark:bg-slate-800 p-3"><b>লগইন অ্যাকাউন্ট</b><div class="break-all text-slate-600 dark:text-slate-300">${esc(email||'—')}</div></div><p>অ্যাকাউন্ট বা ডেটা সংক্রান্ত সমস্যায় আপনার প্রতিষ্ঠানের অ্যাপ Admin-এর সঙ্গে যোগাযোগ করুন।</p></div>`);};
   document.addEventListener('nipa:profile-ready',function(){refresh();const pref=localStorage.getItem('nipa_theme_user_'+uid());if(pref){document.documentElement.classList.toggle('dark',pref==='dark');refresh();}});
   document.addEventListener('DOMContentLoaded',refresh);
+})();
+</script>
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  let contacts=[],allMessages=[],activeRecipient=null,busy=false;
+  const currentId=()=>window.nipaCurrentUser?.id||'';
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const contact=id=>contacts.find(x=>x.id===id)||{id,full_name:'অজানা account',role:'user'};
+  function notice(text,error){const el=$('nipaMessageNotice');if(!el)return;if(!text){el.textContent='';el.className='hidden';return;}el.textContent=text;el.className='rounded-xl p-3 text-xs '+(error?'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300':'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300');}
+  function updateBadge(count){for(const id of ['nipaUnreadBadge','nipaDrawerUnreadBadge','nipaHomeUnreadBadge','nipaFloatUnreadBadge']){const el=$(id);if(!el)continue;if(count>0){el.textContent=count>99?'99+':String(count);el.classList.remove('hidden');}else{el.textContent='';el.classList.add('hidden');}}}
+  function setUnreadCount(){updateBadge(allMessages.filter(m=>m.recipient_id===currentId()&&!m.read_at).length);}
+  async function loadData(){
+    const db=window.nipaSupabase,id=currentId();if(!db||!id)throw new Error('লগইন session পাওয়া যায়নি। আবার login করুন।');
+    const [cr,mr]=await Promise.all([
+      db.rpc('get_message_contacts'),
+      db.from('app_messages').select('id,sender_id,recipient_id,body,created_at,read_at').or('sender_id.eq.'+id+',recipient_id.eq.'+id).order('created_at',{ascending:false}).limit(1000)
+    ]);
+    if(cr.error)throw cr.error;if(mr.error)throw mr.error;
+    contacts=Array.isArray(cr.data)?cr.data:[];allMessages=Array.isArray(mr.data)?mr.data.reverse():[];setUnreadCount();
+  }
+  function formatTime(value){try{return new Date(value).toLocaleString('bn-BD',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});}catch(e){return '';}}
+  function renderInbox(){
+    const box=$('nipaMessageInbox');if(!box)return;
+    const me=currentId(),threads=new Map();
+    allMessages.forEach(m=>{const other=m.sender_id===me?m.recipient_id:m.sender_id,old=threads.get(other)||{other,unread:0,last:null};if(m.recipient_id===me&&!m.read_at)old.unread++;if(!old.last||new Date(m.created_at)>new Date(old.last.created_at))old.last=m;threads.set(other,old);});
+    const rows=[...threads.values()].sort((a,b)=>new Date(b.last.created_at)-new Date(a.last.created_at));
+    if(!rows.length){box.innerHTML='<div class="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500 dark:border-slate-700">এখনো কোনো message নেই। “নতুন” চাপ দিয়ে কোনো MPO বা Admin-কে লিখুন।</div>';return;}
+    box.innerHTML=rows.map(t=>{const c=contact(t.other),last=t.last,preview=(last.sender_id===me?'আপনি: ':'')+last.body;return '<button onclick="nipaOpenConversation(\''+esc(t.other)+'\')" class="w-full rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 flex gap-3 text-left shadow-sm"><span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0"><i class="fa-solid fa-user"></i></span><span class="min-w-0 flex-1"><span class="flex justify-between gap-2"><b class="truncate text-xs">'+esc(c.full_name||c.email||'User')+'</b><small class="shrink-0 text-[9px] text-slate-400">'+formatTime(last.created_at)+'</small></span><span class="block text-[9px] text-slate-500">'+esc((c.role==='admin'?'Admin':'MPO')+(c.mpo_code?' • '+c.mpo_code:''))+'</span><span class="mt-1 block truncate text-[10px] text-slate-600 dark:text-slate-300">'+esc(preview)+'</span></span>'+(t.unread?'<span class="self-center min-w-5 rounded-full bg-red-500 px-1.5 py-1 text-center text-[9px] font-black text-white">'+t.unread+'</span>':'')+'</button>';}).join('');
+  }
+  function renderConversation(){
+    const el=$('nipaConversationMessages'),me=currentId();if(!el||!activeRecipient)return;
+    const list=allMessages.filter(m=>(m.sender_id===me&&m.recipient_id===activeRecipient)||(m.sender_id===activeRecipient&&m.recipient_id===me));
+    if(!list.length){el.innerHTML='<div class="py-8 text-center text-[11px] text-slate-500">এই conversation-এ প্রথম message পাঠান।</div>';return;}
+    el.innerHTML=list.map(m=>'<div class="flex '+(m.sender_id===me?'justify-end':'justify-start')+'"><div class="max-w-[84%] rounded-2xl px-3 py-2 text-xs whitespace-pre-wrap break-words '+(m.sender_id===me?'rounded-br-sm bg-emerald-700 text-white':'rounded-bl-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700')+'">'+esc(m.body)+'<div class="mt-1 text-right text-[8px] opacity-70">'+formatTime(m.created_at)+(m.sender_id===me?(m.read_at?' · দেখা হয়েছে':' · পাঠানো হয়েছে'):'')+'</div></div></div>').join('');
+    el.scrollTop=el.scrollHeight;
+  }
+  async function markVisibleRead(){
+    const me=currentId(),ids=allMessages.filter(m=>m.sender_id===activeRecipient&&m.recipient_id===me&&!m.read_at).map(m=>m.id);
+    for(const messageId of ids){const {error}=await window.nipaSupabase.rpc('mark_app_message_read',{p_message_id:messageId});if(error)console.warn('Could not mark message read:',error.message);}
+  }
+  async function refreshConversation(markRead){await loadData();renderConversation();if(markRead){await markVisibleRead();await loadData();renderConversation();}}
+  window.nipaOpenMessages=async function(){if(typeof navTo==='function')navTo('messagesPage');$('nipaMessageInbox')?.classList.remove('hidden');$('nipaConversation')?.classList.add('hidden');$('nipaNewMessageBox')?.classList.add('hidden');activeRecipient=null;await window.nipaLoadMessages();};
+  window.nipaLoadMessages=async function(){try{await loadData();notice('','');renderInbox();}catch(e){const box=$('nipaMessageInbox');if(box)box.innerHTML='';notice('Message setup হয়নি। Supabase SQL Editor-এ messages_setup.sql চালান। ('+(e.message||'error')+')',true);}};
+  window.nipaNewMessage=async function(){activeRecipient=null;$('nipaMessageInbox')?.classList.add('hidden');$('nipaConversation')?.classList.add('hidden');$('nipaNewMessageBox')?.classList.remove('hidden');try{await loadData();const sel=$('nipaMessageRecipient');if(!contacts.length){sel.innerHTML='<option value="">অন্য কোনো সক্রিয় MPO/Admin নেই</option>';return;}sel.innerHTML='<option value="">প্রাপক নির্বাচন করুন</option>'+contacts.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.full_name||c.email||'User')+' — '+esc(c.role==='admin'?'Admin':'MPO')+(c.mpo_code?' ('+esc(c.mpo_code)+')':'')+'</option>').join('');notice('','');}catch(e){notice('প্রাপক তালিকা লোড হয়নি। messages_setup.sql চালানো হয়েছে কি না দেখুন।',true);}};
+  window.nipaStartConversation=function(){const id=$('nipaMessageRecipient')?.value;if(!id){notice('একজন প্রাপক নির্বাচন করুন।',true);return;}window.nipaOpenConversation(id);};
+  window.nipaOpenConversation=async function(id){activeRecipient=id;$('nipaNewMessageBox')?.classList.add('hidden');$('nipaMessageInbox')?.classList.add('hidden');$('nipaConversation')?.classList.remove('hidden');const c=contact(id);$('nipaConversationName').textContent=c.full_name||c.email||'User';$('nipaConversationRole').textContent=(c.role==='admin'?'Admin':'MPO')+(c.mpo_code?' • '+c.mpo_code:'');try{await refreshConversation(true);notice('','');}catch(e){notice('Conversation লোড হয়নি। ('+(e.message||'error')+')',true);}};
+  window.nipaBackToInbox=function(){activeRecipient=null;$('nipaConversation')?.classList.add('hidden');$('nipaNewMessageBox')?.classList.add('hidden');$('nipaMessageInbox')?.classList.remove('hidden');window.nipaLoadMessages();};
+  window.nipaSendMessage=async function(event){event.preventDefault();if(busy||!activeRecipient)return false;const input=$('nipaMessageInput'),body=(input?.value||'').trim();if(!body)return false;const btn=$('nipaMessageSend');busy=true;if(btn){btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i>';}
+    try{const {error}=await window.nipaSupabase.rpc('send_app_message',{p_recipient_id:activeRecipient,p_body:body});if(error)throw error;input.value='';await refreshConversation(false);notice('','');}
+    catch(e){notice('Message পাঠানো যায়নি। ('+(e.message||'error')+')',true);}
+    finally{busy=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-paper-plane"></i>';}}return false;};
+  document.addEventListener('nipa:profile-ready',function(){window.nipaLoadMessages();});
+  setInterval(async function(){if(!currentId()||document.hidden)return;try{await loadData();if($('messagesPage')&&!$('messagesPage').classList.contains('hidden')){if(activeRecipient){const hadUnread=allMessages.some(m=>m.sender_id===activeRecipient&&m.recipient_id===currentId()&&!m.read_at);if(hadUnread){await markVisibleRead();await loadData();}renderConversation();}else renderInbox();}}catch(e){}},30000);
 })();
 </script>
 </body>
