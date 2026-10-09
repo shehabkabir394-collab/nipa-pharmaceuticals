@@ -297,6 +297,8 @@
 
   <!-- Supabase JS client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#007f3f">
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 min-h-screen pb-20 transition-colors duration-200">
   <!-- ===== SUPABASE LOGIN GATE ===== -->
@@ -609,6 +611,7 @@
         <button onclick="openProfilePhotoPicker()" class="nipa-profile-action"><i class="fa-solid fa-camera text-emerald-700"></i><span>ছবি পরিবর্তন</span><i class="fa-solid fa-chevron-right ml-auto text-slate-400"></i></button>
         <button onclick="nipaOpenMpoEditor()" class="nipa-profile-action"><i class="fa-solid fa-code text-emerald-700"></i><span>MPO Code পরিবর্তন</span><i class="fa-solid fa-chevron-right ml-auto text-slate-400"></i></button>
         <button onclick="nipaOpenLanguage()" class="nipa-profile-action"><i class="fa-solid fa-globe text-emerald-700"></i><span>ভাষা / Language</span><span id="nipaLanguageLabel" class="ml-auto text-[10px] text-slate-500">বাংলা</span><i class="fa-solid fa-chevron-right text-slate-400"></i></button>
+        <button onclick="nipaEnablePushNotifications()" class="nipa-profile-action"><i class="fa-solid fa-bell text-emerald-700"></i><span>ফোনে notification চালু করুন</span><span id="nipaPushStatus" class="ml-auto text-[10px] text-slate-500">বন্ধ</span><i class="fa-solid fa-chevron-right text-slate-400"></i></button>
         <button onclick="nipaOpenSettings()" class="nipa-profile-action"><i class="fa-solid fa-gear text-emerald-700"></i><span>অ্যাপ সেটিংস</span><span id="nipaThemeLabel" class="ml-auto text-[10px] text-slate-500">Light</span><i class="fa-solid fa-chevron-right text-slate-400"></i></button>
         <button onclick="nipaOpenHelp()" class="nipa-profile-action"><i class="fa-solid fa-circle-question text-emerald-700"></i><span>সাহায্য ও সাপোর্ট</span><i class="fa-solid fa-chevron-right ml-auto text-slate-400"></i></button>
         <button onclick="nipaLogout()" class="nipa-profile-action text-red-600 border-b-0"><i class="fa-solid fa-right-from-bracket"></i><span>লগ আউট</span><i class="fa-solid fa-chevron-right ml-auto text-red-300"></i></button>
@@ -2418,7 +2421,39 @@
           const x=masterProducts[name];
           rows += '<tr><td>'+sl+++'</td><td>'+excelEsc(name)+'</td><td>'+excelEsc(x.pack)+'</td><td>'+x.mrp.toFixed(2)+'</td><td>'+x.tpVat.toFixed(2)+'</td><td>'+x.qty+'</td><td>'+excelEsc(x.bonusList.join(', ')||'-')+'</td><td>'+x.gross.toFixed(2)+'</td><td>'+x.discount.toFixed(2)+'</td><td>'+x.total.toFixed(2)+'</td></tr>';
         });
-        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table></body></html>';
+        const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse}td,th{border:1px solid #777;padding:6px}th{font-weight:bold;background:#e8f5e9}.title{font-size:18px;font-weight:bold;border:0}.meta{border:0}</style></head><body><table><tr><td colspan="10" class="title">NIPA PHARMACEUTICALS LTD.</td></tr><tr><td colspan="10" class="title">MPO Master Requisition &amp; Order Report</td></tr><tr><td colspan="5" class="meta">MPO Name: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.full_name)||'')+'</td><td colspan="5" class="meta">MPO Code: '+excelEsc((nipaCurrentProfile&&nipaCurrentProfile.mpo_code)||'')+' | Date: '+excelEsc(new Date().toLocaleDateString())+'</td></tr><tr><th>Sl</th><th>Product Name</th><th>Pack Size</th><th>MRP (৳)</th><th>TP+VAT (৳)</th><th>Total Qty</th><th>Bonus / Offer</th><th>Gross Amount (৳)</th><th>Discount (৳)</th><th>Net Total (৳)</th></tr>'+rows+'<tr><td colspan="8"></td><th>Grand Total</th><th>'+grandTotal.toFixed(2)+'</th></tr></table>
+<script>
+/* NIPA phone push notifications: requires HTTPS, service worker, SQL setup and deployed Edge Function. */
+(function(){
+  const endpoint='https://wusappxcgwpyaqizgqfs.supabase.co/functions/v1/send-push';
+  const status=()=>document.getElementById('nipaPushStatus');
+  function setStatus(text){if(status())status().textContent=text;}
+  function b64ToBytes(value){const pad='='.repeat((4-value.length%4)%4);const raw=atob((value+pad).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(raw,c=>c.charCodeAt(0));}
+  async function syncStatus(){if(!('serviceWorker'in navigator)||!('PushManager'in window)){setStatus('অসমর্থিত');return;}try{const reg=await navigator.serviceWorker.getRegistration('./');const sub=reg&&await reg.pushManager.getSubscription();setStatus(sub?'চালু':'বন্ধ');}catch(e){setStatus('বন্ধ');}}
+  window.nipaEnablePushNotifications=async function(){
+    const user=window.nipaCurrentUser,db=window.nipaSupabase;
+    if(!user||!db){alert('আগে account-এ login করুন।');return;}
+    if(!window.isSecureContext||!('serviceWorker'in navigator)||!('PushManager'in window)||!('Notification'in window)){alert('Phone notification চালু করতে HTTPS website খুলুন। iPhone হলে website-টি Home Screen-এ Add করুন।');return;}
+    if(Notification.permission==='denied'){alert('Browser settings-এ এই website-এর notification permission Allow করুন, তারপর আবার চেষ্টা করুন।');return;}
+    setStatus('চালু হচ্ছে…');
+    try{
+      const permission=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+      if(permission!=='granted')throw new Error('Notification permission দেওয়া হয়নি।');
+      const reg=await navigator.serviceWorker.register('./sw.js');await navigator.serviceWorker.ready;
+      const keyResponse=await fetch(endpoint,{method:'GET',headers:{'Accept':'application/json'}});
+      if(!keyResponse.ok)throw new Error('Push service এখনো configure হয়নি।');
+      const keyData=await keyResponse.json();if(!keyData.publicKey)throw new Error('VAPID public key পাওয়া যায়নি।');
+      let subscription=await reg.pushManager.getSubscription();
+      if(!subscription)subscription=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(keyData.publicKey)});
+      const {error}=await db.from('app_push_subscriptions').upsert({user_id:user.id,endpoint:subscription.endpoint,subscription:subscription.toJSON(),updated_at:new Date().toISOString()},{onConflict:'endpoint'});
+      if(error)throw error;setStatus('চালু');alert('এই ফোনে message notification চালু হয়েছে।');
+    }catch(e){console.error('Push setup failed',e);setStatus('বন্ধ');alert('Notification চালু হয়নি: '+(e.message||'আবার চেষ্টা করুন।'));}
+  };
+  if('serviceWorker'in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').then(syncStatus).catch(e=>console.warn('Service worker registration failed',e));
+  document.addEventListener('nipa:profile-ready',syncStatus);document.addEventListener('DOMContentLoaded',syncStatus);
+})();
+</script>
+</body></html>';
         const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
         const filename='Nipa_Pharma_Requisition_'+getLocalDateKey()+'.xls';
         forceBrowserDownload(blob,filename);
