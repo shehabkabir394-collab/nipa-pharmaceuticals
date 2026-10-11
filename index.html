@@ -29,7 +29,7 @@
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- SheetJS for Professional Excel Generation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Hind Siliguri', sans-serif; }
@@ -997,7 +997,6 @@
         </div>
 
       </div>
-
     </div>
 
     <!-- 6. MASTER SHEET & EXCEL DOWNLOAD PAGE -->
@@ -1239,6 +1238,8 @@
     let currentCart = {}; // Format: { productId: { qty: 1, bonus: '', bonusData: {...} } }
     let productBonuses = {};
     let ordersHistory = [];
+    // Keep order history available to add-on features that read from window.
+    Object.defineProperty(window, 'ordersHistory', { configurable: true, get: () => ordersHistory, set: value => { if (Array.isArray(value)) ordersHistory = value; } });
     let savedShopNames = [];
     window.__nipaAdminOrders = [];
 
@@ -1375,7 +1376,7 @@
       const list = document.getElementById('savedShopNames');
       if (shopInput && list) {
         const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id; const last = (uid && window.nipaCurrentProfile?.role==='sr' ? localStorage.getItem(nipaScopedLastShopKey(uid)) : '') || savedShopNames[0] || '';
-        if (last) shopInput.value = last;
+        // Auto-select disabled: New Order starts with a blank shop field.
         list.innerHTML = savedShopNames.map(n => `<option value="${n.replace(/"/g,'&quot;')}"></option>`).join('');
       }
       filterProductDropdown();
@@ -1995,8 +1996,7 @@
         order.receivedAt = new Date().toLocaleString('bn-BD');
       } else if (nextStatus === 'Delivered' && order.status === 'Received') {
         order.status = 'Delivered';
-        order.deliveredAt = new Date().toLocaleString('bn-BD');
-      } else return;
+        order.deliveredAt = new Date().toLocaleString('bn-BD');      } else return;
       nipaSaveCurrentUserOrders();
       await updateCloudOrderStatus(order);
       renderOrderHistoryPage();
@@ -2028,17 +2028,43 @@
     function previousDueStorageKey(){const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;return 'nipa_previous_due_user_'+String(uid||'unknown');}
     function normalizeLedgerShop(name){return String(name||'').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
     function getPreviousDues(){try{return JSON.parse(localStorage.getItem(previousDueStorageKey())||'{}')||{};}catch(e){return {};}}
-    function savePreviousDues(map){try{localStorage.setItem(previousDueStorageKey(),JSON.stringify(map||{}));}catch(e){}}
-    function setShopPreviousDue(shopName){
-      const key=normalizeLedgerShop(shopName),map=getPreviousDues(),old=Number(map[key]?.amount||0);
-      const raw=prompt('আগের বাকি লিখুন (৳)। বর্তমান: ৳'+old.toFixed(2),String(old.toFixed(2)));
-      if(raw===null)return;const amount=Number(raw);if(!Number.isFinite(amount)||amount<0){alert('সঠিক পরিমাণ লিখুন।');return;}
-      if(amount===0)delete map[key];else map[key]={shopName:String(shopName).trim(),amount:Number(amount.toFixed(2))};
-      savePreviousDues(map);renderPaymentLedgerPage();
+    function savePreviousDues(map){
+      try{const value=JSON.stringify(map||{});localStorage.setItem(previousDueStorageKey(),value);return localStorage.getItem(previousDueStorageKey())===value;}
+      catch(e){console.error('Previous Due save failed:',e);return false;}
     }
+    window.setShopPreviousDue=function(shopName){
+      const cleanName=String(shopName||'').trim();if(!cleanName)return;
+      document.getElementById('previousDueEditModal')?.remove();
+      const key=normalizeLedgerShop(cleanName),old=Number(getPreviousDues()[key]?.amount||0);
+      const overlay=document.createElement('div');overlay.id='previousDueEditModal';overlay.className='fixed inset-0 z-[10001] bg-black/50 flex items-center justify-center p-4';
+      overlay.innerHTML='<div class="w-full max-w-sm bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-4 border border-slate-200 dark:border-slate-700"><div class="flex items-start justify-between gap-3 mb-3"><div><div class="text-sm font-black text-slate-800 dark:text-slate-100">দোকানের Previous Due</div><div data-previous-due-shop class="mt-1 text-xs text-slate-500"></div></div><button type="button" data-previous-due-close class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700">✕</button></div><label for="previousDueAmountInput" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">আগের বাকি (৳)</label><input id="previousDueAmountInput" type="text" inputmode="decimal" autocomplete="off" class="w-full px-3 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-base font-bold outline-none focus:ring-2 focus:ring-amber-400" placeholder="যেমন: 1500.00"><div class="mt-1 text-[9px] text-slate-400">বাংলা/ইংরেজি সংখ্যা এবং কমা ব্যবহার করা যাবে। ০ দিলে Previous Due মুছে যাবে।</div><div data-previous-due-error class="hidden mt-2 text-[10px] font-bold text-red-600"></div><div class="flex gap-2 mt-4"><button type="button" data-previous-due-close class="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold">বন্ধ</button><button type="button" data-previous-due-save class="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-black">Save Previous Due</button></div></div>';
+      overlay.querySelector('[data-previous-due-shop]').textContent=cleanName;
+      const input=overlay.querySelector('#previousDueAmountInput');input.value=old.toFixed(2);
+      const error=overlay.querySelector('[data-previous-due-error]');
+      const close=()=>overlay.remove();overlay.querySelectorAll('[data-previous-due-close]').forEach(btn=>btn.addEventListener('click',close));
+      overlay.addEventListener('click',event=>{if(event.target===overlay)close();});
+      const save=()=>{
+        const digits=String(input.value||'').replace(/[০-৯]/g,ch=>String('০১২৩৪৫৬৭৮৯'.indexOf(ch)));
+        const normalized=digits.replace(/[৳,\s]/g,'');
+        if(!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)){error.textContent='সঠিক টাকার পরিমাণ লিখুন।';error.classList.remove('hidden');input.focus();return;}
+        const amount=Number(normalized);if(!Number.isFinite(amount)||amount<0){error.textContent='সঠিক টাকার পরিমাণ লিখুন।';error.classList.remove('hidden');input.focus();return;}
+        const map=getPreviousDues();if(amount===0)delete map[key];else map[key]={shopName:cleanName,amount:Number(amount.toFixed(2))};
+        if(!savePreviousDues(map)){error.textContent='Previous Due সেভ হয়নি। আবার চেষ্টা করুন।';error.classList.remove('hidden');return;}
+        close();renderPaymentLedgerPage();
+      };
+      overlay.querySelector('[data-previous-due-save]').addEventListener('click',save);
+      input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();save();}});
+      document.body.appendChild(overlay);setTimeout(()=>input.focus(),40);
+    };
     function getShopLedgerGroups() {
       const groups = {}, previous=getPreviousDues();
       Object.keys(previous).forEach(key=>{const amount=Number(previous[key]?.amount||0);if(amount>0)groups[key]={shopName:previous[key].shopName||key,orders:[],previousDue:amount};});
+      // Include saved shops even before their first delivery so they can be managed in the ledger.
+      (typeof window.nipaGetShops==='function' ? window.nipaGetShops() : []).forEach(shop=>{
+        const name=String(shop?.name||'').trim(); if(!name)return;
+        const key=normalizeLedgerShop(name);
+        if(!groups[key])groups[key]={shopName:name,orders:[],previousDue:Number(previous[key]?.amount||0)};
+      });
       ordersHistory.filter(o => o.status === 'Delivered' && String(o.shopName || '').trim()).forEach(ord => {
         const key = normalizeLedgerShop(ord.shopName);
         if (!groups[key]) groups[key] = { shopName: String(ord.shopName).trim(), orders: [], previousDue:Number(previous[key]?.amount||0) };
@@ -2191,7 +2217,7 @@
             <div><div class="font-black text-xs text-slate-800 dark:text-slate-100">${group.shopName}</div><div class="text-[9px] text-slate-400">${group.orders.length} Delivered Order${group.orders.length > 1 ? 's' : ''}</div></div>
             <span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${group.totalDue > 0.009 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}">${group.totalDue > 0.009 ? 'Due' : 'Fully Paid'}</span>
           </div>
-          <div class="mt-2 flex items-center justify-between rounded-lg bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5"><span class="text-[9px] text-amber-700">Previous Due</span><b class="text-[10px] text-amber-700">৳${Number(group.previousDue||0).toFixed(2)}</b><button onclick="setShopPreviousDue(decodeURIComponent('${safeKey}'))" class="text-[9px] font-bold text-cyan-700 underline">Edit</button></div>
+          <div class="mt-2 flex items-center justify-between rounded-lg bg-amber-50 dark:bg-amber-900/20 px-2 py-1.5"><span class="text-[9px] text-amber-700">Previous Due</span><b class="text-[10px] text-amber-700">৳${Number(group.previousDue||0).toFixed(2)}</b><button onclick="window.setShopPreviousDue(decodeURIComponent('${safeKey}'))" class="text-[9px] font-bold text-cyan-700 underline">Edit</button></div>
           <div class="grid grid-cols-3 gap-1.5 mt-2">
             <div class="text-center"><div class="text-[9px] text-slate-400">মোট</div><b class="text-[11px]">৳${group.totalBill.toFixed(2)}</b></div>
             <div class="text-center"><div class="text-[9px] text-green-500">জমা</div><b class="text-[11px] text-green-600">৳${group.totalPaid.toFixed(2)}</b></div>
@@ -2969,8 +2995,7 @@ async function nipaRegister(event){
   }
   return false;
 }
-async function nipaLogin(event){
-  if (event) event.preventDefault();
+async function nipaLogin(event){  if (event) event.preventDefault();
   const email = (document.getElementById('nipaLoginEmail')?.value || '').trim();
   const password = document.getElementById('nipaLoginPassword')?.value || '';
   const btn = document.getElementById('nipaLoginBtn');
@@ -3295,7 +3320,7 @@ window.nipaSupabase = nipaSupabase;
     const duplicate=a.find(x=>String(x.id)!==String(editId||'')&&(normName(x.name)===normName(name)||(normPhone(phone)&&normPhone(x.phone)===normPhone(phone))));
     if(duplicate){alert('এই দোকানটি আগে থেকেই তালিকায় আছে: '+duplicate.name+(duplicate.phone?' • '+duplicate.phone:''));return;}
     let id=editId||nextId(); const idx=a.findIndex(x=>String(x.id)===String(id)); const row={id,name,address,phone,updatedAt:Date.now()};
-    if(idx>=0) a[idx]=row; else a.unshift(row); save(a); document.getElementById('nipaShopModal')?.remove(); nipaRenderShopList(); nipaRefreshShopSelector(id); nipaRememberLastShop(id); alert(idx>=0?'দোকানের তথ্য update হয়েছে।':'দোকান save হয়েছে।');
+    if(idx>=0) a[idx]=row; else a.unshift(row); save(a); document.getElementById('nipaShopModal')?.remove(); nipaRenderShopList(); nipaRefreshShopSelector(id); nipaRememberLastShop(id); if(typeof window.renderPaymentLedgerPage==='function')window.renderPaymentLedgerPage(); alert(idx>=0?'দোকানের তথ্য update হয়েছে।':'দোকান save হয়েছে।');
   };
   window.nipaRememberLastShop=function(id){ const u=uid(); if(u) localStorage.setItem('nipa_last_shop_user_'+u,String(id||'')); };
   function normalizeShopName(value){return String(value||'').trim().replace(/\s+/g,' ').toLocaleLowerCase();}
@@ -3442,5 +3467,158 @@ window.nipaSupabase = nipaSupabase;
   setInterval(async function(){if(!currentId()||document.hidden)return;try{await loadData();if($('messagesPage')&&!$('messagesPage').classList.contains('hidden')){if(activeRecipient){const hadUnread=allMessages.some(m=>m.sender_id===activeRecipient&&m.recipient_id===currentId()&&!m.read_at);if(hadUnread){await markVisibleRead();await loadData();}renderConversation();}else renderInbox();}}catch(e){}},30000);
 })();
 </script>
+<!-- User-requested fixes: New Order reset, unified monthly shop sheet, manual ledger shops, fake-order cancellation -->
+<script>
+(function(){
+  function safeText(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+  // New Order should start clean; do not auto-select the last shop.
+  const cleanNewOrder = function(){
+    const input=document.getElementById('manualShopName'); if(input) input.value='';
+    const info=document.getElementById('selectedShopInfo'); if(info) info.classList.add('hidden');
+    ['selectedProduct','productSelect','productDropdown','productSearch','qtyInput','quantityInput'].forEach(id=>{
+      const el=document.getElementById(id); if(!el)return;
+      if(el.tagName==='SELECT') el.selectedIndex=0; else if(/qty|quantity/i.test(id)) el.value='1'; else if(/search/i.test(id)) el.value='';
+    });
+    if(Array.isArray(window.cart)) window.cart=[];
+    if(Array.isArray(window.orderCart)) window.orderCart=[];
+    try{ if(typeof renderCartSummary==='function') renderCartSummary(); }catch(e){}
+  };
+  // Override init to reset shop selection after original UI initialization.
+  const initDesc=Object.getOwnPropertyDescriptor(window,'initNewOrderPage');
+  if(typeof window.initNewOrderPage==='function'){
+    const originalInit=window.initNewOrderPage;
+    window.initNewOrderPage=function(){ originalInit.apply(this,arguments); setTimeout(cleanNewOrder,80); };
+  }
+  // Add shop-ledger manual shop button and a single-sheet monthly export.
+  function addLedgerControls(){
+    const page=document.getElementById('paymentLedgerPage');
+    if(page && !document.getElementById('nipaManualLedgerShopBtn')){
+      const top=page.querySelector('input#shopLedgerSearch')?.parentElement || page.firstElementChild;
+      const btn=document.createElement('button'); btn.id='nipaManualLedgerShopBtn'; btn.type='button';
+      btn.className='w-full mb-2 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold';
+      btn.textContent='+ বাকি খাতায় নতুন দোকান যোগ করুন';
+      btn.onclick=()=>{ if(typeof window.nipaOpenShopForm==='function') window.nipaOpenShopForm(); else alert('দোকান তালিকা থেকে নতুন দোকান যোগ করুন।'); };
+      top?.insertAdjacentElement('afterend',btn);
+    }
+    const month=document.getElementById('masterMonthFilter');
+    if(month && !document.getElementById('nipaAllShopsMonthlyExcel')){
+      const btn=document.createElement('button');btn.id='nipaAllShopsMonthlyExcel';btn.type='button';
+      btn.className='w-full mb-2 py-2.5 rounded-xl bg-emerald-700 text-white text-xs font-bold';
+      btn.textContent='⬇ মাসের সব দোকান — এক Excel Sheet';
+      btn.onclick=downloadAllShopsMonthlyExcel;
+      month.insertAdjacentElement('afterend',btn);
+    }
+  }
+  function monthKey(o){
+    if(o?.createdDateKey)return String(o.createdDateKey).slice(0,7);
+    if(o?.createdAt){const d=new Date(Number(o.createdAt));if(!Number.isNaN(d.getTime()))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+    const raw=String(o?.date||'');
+    const parsed=new Date(raw); if(!Number.isNaN(parsed.getTime()))return parsed.getFullYear()+'-'+String(parsed.getMonth()+1).padStart(2,'0');
+    const match=raw.match(/(\d{1,2})\s+([^\s,]+)[,\s]+(\d{4})/);
+    if(match){const months={'জানুয়ারি':1,'জানুয়ারি':1,'ফেব্রুয়ারি':2,'ফেব্রুয়ারি':2,'মার্চ':3,'এপ্রিল':4,'মে':5,'জুন':6,'জুলাই':7,'আগস্ট':8,'সেপ্টেম্বর':9,'অক্টোবর':10,'নভেম্বর':11,'ডিসেম্বর':12,'Jan':1,'Feb':2,'Mar':3,'Apr':4,'May':5,'Jun':6,'Jul':7,'Aug':8,'Sep':9,'Oct':10,'Nov':11,'Dec':12};const m=months[match[2]];if(m)return match[3]+'-'+String(m).padStart(2,'0');}
+    return '';
+  }
+  function downloadAllShopsMonthlyExcel(){
+    const now=new Date(), localMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    const month=document.getElementById('masterMonthFilter')?.value || document.getElementById('salesReportMonth')?.value || localMonth;
+    const orders=(window.ordersHistory||[]).filter(o=>monthKey(o)===month && !o.cancelled && o.status!=='Cancelled');
+    if(!orders.length){alert('নির্বাচিত মাসে কোনো অর্ডার পাওয়া যায়নি।');return;}
+    const headers=['Month','Shop Name','Shop Address','Shop Phone','Date','Order ID','Status','Product','Pack','Qty','Bonus','MRP','TP+VAT','Line Total','Order Total'];
+    const rows=[['NIPA PHARMACEUTICALS LTD.'],['MONTHLY SHOP ORDER REPORT  |  '+month],[],[],headers],merges=[];
+    const shops=typeof window.nipaGetShops==='function'?window.nipaGetShops():[];
+    const shopGroups=new Map();
+    orders.forEach(o=>{
+      const name=String(o.shopName||'').trim()||'নামহীন দোকান',key=name.replace(/\s+/g,' ').toLocaleLowerCase();
+      if(!shopGroups.has(key))shopGroups.set(key,{name,orders:[]});
+      shopGroups.get(key).orders.push(o);
+    });
+    let productLineCount=0,totalQty=0,totalLineAmount=0,totalOrderAmount=0;
+    [...shopGroups.values()].sort((a,b)=>a.name.localeCompare(b.name)).forEach(group=>{
+      const shop=shops.find(s=>String(s.name||'').trim().replace(/\s+/g,' ').toLocaleLowerCase()===group.name.replace(/\s+/g,' ').toLocaleLowerCase())||{};
+      const firstDataRow=rows.length,groupTotals={qty:0,line:0,orders:0};
+      group.orders.sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0)||String(a.id||'').localeCompare(String(b.id||''))).forEach(o=>{
+        const items=Array.isArray(o.items)&&o.items.length?o.items:[{}];
+        groupTotals.orders+=Number(o.totalAmount||0); totalOrderAmount+=Number(o.totalAmount||0);
+        items.forEach((i,index)=>{
+          const qty=Number(i.qty||0),line=Number(i.total??i.grossTotal??(qty*Number(i.tpVat||0)))||0;
+          groupTotals.qty+=qty;groupTotals.line+=line;totalQty+=qty;totalLineAmount+=line;productLineCount++;
+          rows.push([month,index===0?group.name:'',index===0?(shop.address||''):'',index===0?(shop.phone||''):'',o.date||'',o.id||'',o.status||'',i.name||'',i.pack||'',qty,i.bonus||'',Number(i.mrp||0),Number(i.tpVat||0),line,Number(o.totalAmount||0)]);
+        });
+      });
+      const lastDataRow=rows.length-1;
+      if(lastDataRow>firstDataRow)for(let col=1;col<=3;col++)merges.push({s:{r:firstDataRow,c:col},e:{r:lastDataRow,c:col}});
+      rows.push(['','','','','','','SHOP SUBTOTAL','','',groupTotals.qty,'','','',Number(groupTotals.line.toFixed(2)),Number(groupTotals.orders.toFixed(2))]);
+    });
+    rows[2]=['MONTH',month,'SHOPS',shopGroups.size,'ORDERS',orders.length,'PRODUCT LINES',productLineCount,'TOTAL SALES',Number(totalOrderAmount.toFixed(2))];
+    const grandTotalRow=rows.length;
+    rows.push(['','','','','','','GRAND TOTAL','','',totalQty,'','','',Number(totalLineAmount.toFixed(2)),Number(totalOrderAmount.toFixed(2))]);
+    merges.push({s:{r:0,c:0},e:{r:0,c:headers.length-1}},{s:{r:1,c:0},e:{r:1,c:headers.length-1}});
+    if(window.XLSX){
+      const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet(rows);
+      ws['!merges']=merges;
+      ws['!cols']=[{wch:12},{wch:28},{wch:30},{wch:16},{wch:16},{wch:16},{wch:16},{wch:28},{wch:14},{wch:10},{wch:14},{wch:13},{wch:13},{wch:16},{wch:16}];
+      ws['!rows']=[{hpt:34},{hpt:24},{hpt:20},{hpt:8},{hpt:32}];
+      ws['!autofilter']={ref:'A5:O'+Math.max(5,grandTotalRow)};
+      const border={bottom:{style:'thin',color:{rgb:'D8E2EA'}}};
+      const base={font:{name:'Aptos',sz:10,color:{rgb:'243447'}},alignment:{vertical:'center'},border};
+      const styleCell=(r,c,style)=>{const ref=XLSX.utils.encode_cell({r,c});if(!ws[ref])ws[ref]={t:'s',v:""};ws[ref].s=Object.assign({},base,style);};
+      for(let r=0;r<rows.length;r++)for(let c=0;c<headers.length;c++)styleCell(r,c,{});
+      for(let c=0;c<headers.length;c++){
+        styleCell(0,c,{font:{name:'Aptos Display',sz:20,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'12304A'}},alignment:{horizontal:'center',vertical:'center'}});
+        styleCell(1,c,{font:{name:'Aptos',sz:13,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'087E75'}},alignment:{horizontal:'center',vertical:'center'}});
+        styleCell(2,c,{font:{name:'Aptos',sz:10,bold:true,color:{rgb:(c%2===0?'087E75':'243447')}},fill:{patternType:'solid',fgColor:{rgb:(c%2===0?'EAF4F3':'F2F6F9')}},alignment:{horizontal:(c%2===0?'left':'center'),vertical:'center'}});
+        styleCell(4,c,{font:{name:'Aptos',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'1F4965'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border:{bottom:{style:'medium',color:{rgb:'087E75'}}}});
+        styleCell(grandTotalRow,c,{font:{name:'Aptos',sz:10,bold:true,color:{rgb:'FFFFFF'}},fill:{patternType:'solid',fgColor:{rgb:'12304A'}},alignment:{vertical:'center'},border:{top:{style:'medium',color:{rgb:'087E75'}}}});
+      }
+      for(let r=5;r<grandTotalRow;r++){
+        const subtotal=rows[r][6]==='SHOP SUBTOTAL';
+        for(let c=0;c<headers.length;c++)styleCell(r,c,subtotal?{font:{bold:true,color:{rgb:'14564E'}},fill:{patternType:'solid',fgColor:{rgb:'DDF1EC'}},border:{top:{style:'thin',color:{rgb:'9CCBC1'}},bottom:{style:'thin',color:{rgb:'9CCBC1'}}}}:{fill:{patternType:'solid',fgColor:{rgb:((r%2)===0?'F5F8FA':'FFFFFF')}}});
+        if(!subtotal)for(let c=1;c<=3;c++)styleCell(r,c,{font:{bold:true,color:{rgb:'14564E'}},fill:{patternType:'solid',fgColor:{rgb:'EAF4F3'}},alignment:{vertical:'center',wrapText:true}});
+      }
+      for(let r=5;r<=grandTotalRow;r++)for(const c of [11,12,13,14])styleCell(r,c,{numFmt:'"৳"#,##0.00',alignment:{horizontal:'right',vertical:'center'}});
+      for(let r=5;r<=grandTotalRow;r++)styleCell(r,9,{numFmt:'#,##0',alignment:{horizontal:'right',vertical:'center'}});
+      ws['!rows'][4]={hpt:32};ws['!rows'][grandTotalRow]={hpt:24};
+      wb.Props={Title:'Monthly Shop Order Report - '+month,Subject:'Shop-wise product and order details',Creator:'NIPA Pharmaceuticals'};
+      XLSX.utils.book_append_sheet(wb,ws,'Monthly Report');
+      XLSX.writeFile(wb,'Nipa_All_Shops_'+month+'.xlsx');
+    }
+    else {const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff',csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Nipa_All_Shops_'+month+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+  }
+  // Mark false/fake orders as cancelled instead of silently deleting their history.
+  window.nipaCancelFakeOrder=function(orderId){
+    const order=(window.ordersHistory||[]).find(o=>String(o.id)===String(orderId));if(!order)return;
+    if(order.status==='Delivered' && (typeof window.getOrderPaidAmount==='function' ? window.getOrderPaidAmount(order)>0 : (order.payments||[]).length>0)){
+      alert('এই অর্ডারে টাকা জমা হয়েছে। আগে payment history যাচাই করুন; জমা থাকা অর্ডার সরাসরি বাতিল করা যাচ্ছে না।');return;
+    }
+    if(!confirm('এই ভুল/ভুয়া অর্ডারটি Cancel করবেন? বাতিল অর্ডার বিক্রি ও বাকি হিসাব থেকে বাদ যাবে।'))return;
+    order.status='Cancelled';order.cancelled=true;order.cancelledAt=Date.now();
+    try{if(typeof window.nipaSaveCurrentUserOrders==='function')window.nipaSaveCurrentUserOrders();}catch(e){}
+    try{if(typeof window.updateCloudOrderStatus==='function')window.updateCloudOrderStatus(order);}catch(e){}
+    ['renderOrderHistoryPage','renderPaymentLedgerPage','renderMasterSheetPage','renderSalesReportPage','updateDashboardStats'].forEach(fn=>{try{if(typeof window[fn]==='function')window[fn]();}catch(e){}});
+  };
+  // Attach cancel button to each visible order card after rendering.
+  const originalRender=window.renderOrderHistoryPage;
+  if(typeof originalRender==='function'){
+    window.renderOrderHistoryPage=function(){
+      originalRender.apply(this,arguments);
+      document.querySelectorAll('#orderHistoryList > div').forEach(card=>{
+        if(card.querySelector('[data-nipa-cancel]'))return;
+        const text=card.textContent||'', m=text.match(/(?:Order|অর্ডার)?\s*#?\s*([A-Z0-9-]{4,})/i);
+        // Find exact order by matching the displayed ID in the card.
+        const order=(window.ordersHistory||[]).find(o=>card.innerHTML.includes(String(o.id)));
+        if(!order || order.status==='Cancelled')return;
+        const actions=card.querySelector('.pt-1.flex.gap-2');
+        if(!actions)return;
+        const btn=document.createElement('button');btn.dataset.nipaCancel='1';btn.className='px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-[10px] font-bold';
+        btn.textContent='ভুল অর্ডার মুছুন (Cancel)';btn.onclick=()=>window.nipaCancelFakeOrder(order.id);actions.appendChild(btn);
+      });
+    };
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(addLedgerControls,500));else setTimeout(addLedgerControls,500);
+  window.addEventListener('pageshow',()=>setTimeout(addLedgerControls,500));
+})();
+</script>
+
+
 </body>
 </html>
