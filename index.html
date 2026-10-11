@@ -986,7 +986,7 @@
           <div class="flex items-center justify-between gap-2 mb-2"><h3 class="text-[11px] font-bold">Monthly Report &amp; Analytics</h3><input id="salesReportMonth" type="month" onchange="setSelectedReportMonth(this.value)" class="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px]"></div>
           <div class="grid grid-cols-3 gap-2"><div class="p-2 rounded-lg bg-white dark:bg-slate-900 text-center"><div class="text-[9px] text-slate-400">Orders</div><b id="monthRepOrders" class="text-xs">0</b></div><div class="p-2 rounded-lg bg-white dark:bg-slate-900 text-center"><div class="text-[9px] text-slate-400">Sales</div><b id="monthRepSales" class="text-xs text-emerald-600">৳0</b></div><div class="p-2 rounded-lg bg-white dark:bg-slate-900 text-center"><div class="text-[9px] text-slate-400">Products</div><b id="monthRepUnits" class="text-xs">0</b></div></div>
           <div id="monthTopSellingList" class="space-y-1 mt-2"></div>
-          <button type="button" onclick="deleteSelectedMonthOrders()" class="w-full mt-2 py-2 rounded-lg bg-rose-600 text-white text-[10px] font-bold">এই মাসের হিসাব reset / data delete</button>
+          <button type="button" onclick="resetSelectedMonthReports()" class="w-full mt-2 py-2 rounded-lg bg-rose-600 text-white text-[10px] font-bold">এই মাসের রিপোর্ট 0 করুন (অর্ডার থাকবে)</button>
         </div>
         <!-- Top Selling Products Rank -->
         <div>
@@ -997,6 +997,7 @@
         </div>
 
       </div>
+
     </div>
 
     <!-- 6. MASTER SHEET & EXCEL DOWNLOAD PAGE -->
@@ -1019,7 +1020,7 @@
           <label for="masterMonthFilter" class="block text-[10px] font-bold mb-1">মাসভিত্তিক দোকান Excel ও রিপোর্ট</label>
           <input id="masterMonthFilter" type="month" onchange="setSelectedReportMonth(this.value)" class="w-full mb-2 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs">
           <div id="monthShopReports" class="space-y-2"></div>
-          <button type="button" onclick="deleteSelectedMonthOrders()" class="w-full mt-2 py-2 rounded-lg bg-rose-600 text-white text-[10px] font-bold"><i class="fa-solid fa-trash-can mr-1"></i> এই মাসের data delete / reset</button>
+          <button type="button" onclick="resetSelectedMonthReports()" class="w-full mt-2 py-2 rounded-lg bg-rose-600 text-white text-[10px] font-bold"><i class="fa-solid fa-rotate-left mr-1"></i> এই মাসের রিপোর্ট 0 করুন (অর্ডার থাকবে)</button>
         </div>
 
         <!-- Shop Wise Breakdown View -->
@@ -1996,7 +1997,8 @@
         order.receivedAt = new Date().toLocaleString('bn-BD');
       } else if (nextStatus === 'Delivered' && order.status === 'Received') {
         order.status = 'Delivered';
-        order.deliveredAt = new Date().toLocaleString('bn-BD');      } else return;
+        order.deliveredAt = new Date().toLocaleString('bn-BD');
+      } else return;
       nipaSaveCurrentUserOrders();
       await updateCloudOrderStatus(order);
       renderOrderHistoryPage();
@@ -2207,7 +2209,7 @@
           const paid = getOrderPaidAmount(ord), due = getOrderDueAmount(ord);
           return `<div class="flex justify-between items-center py-1.5 border-t border-slate-100 dark:border-slate-700"><div><div class="text-[9px] font-bold text-slate-600 dark:text-slate-300">${ord.id} • ${ord.date}</div><div class="text-[9px] text-slate-400">Bill ৳${Number(ord.totalAmount).toFixed(2)} • Paid ৳${paid.toFixed(2)}</div></div><b class="text-[10px] text-red-600">Due ৳${due.toFixed(2)}</b></div>`;
         }).join('');
-        const currentOrdersHtml = ordersHtml || `<div class="py-2 text-center text-[9px] text-green-600 font-bold">✓ Current bill fully paid — নতুন bill এলে এখানে দেখাবে</div>`;
+        const currentOrdersHtml = ordersHtml || `<div class="py-2 text-center text-[9px] text-green-600 font-bold">বর্তমান অর্ডারে বাকি নেই। Previous Due উপরে আলাদা দেখানো হয়েছে।</div>`;
         const paymentsHtml = group.orders.flatMap(ord => (Array.isArray(ord.payments) ? ord.payments.map(p => ({...p, orderId: ord.id})) : [])).sort((a,b) => { const ta = Number(a.timestamp || 0), tb = Number(b.timestamp || 0); if (ta && tb) return tb - ta; if (ta) return -1; if (tb) return 1; return String(b.date || '').localeCompare(String(a.date || '')); }).map((p,idx) => { const displayDate = p.timestamp ? new Date(p.timestamp).toLocaleString('bn-BD') : (p.date || ''); return `<div class="flex justify-between items-center py-1.5 border-t border-green-100 dark:border-green-900/30"><span class="text-[9px] text-slate-500">${displayDate}${p.note ? ` • ${p.note}` : ''}</span><b class="text-[10px] text-green-600">− ৳${Number(p.amount).toFixed(2)}</b></div>`; }).join('');
         const card = document.createElement('div');
         card.className = 'p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700';
@@ -2479,13 +2481,17 @@
     function getSelectedReportMonth(){return document.getElementById('masterMonthFilter')?.value||document.getElementById('salesReportMonth')?.value||getCurrentMonthKey();}
     function getOrderMonthKey(order){if(order?.createdDateKey)return String(order.createdDateKey).slice(0,7);if(order?.createdAt)return getLocalDateKey(new Date(Number(order.createdAt))).slice(0,7);const parsed=new Date(order?.date||'');return Number.isNaN(parsed.getTime())?'':getLocalDateKey(parsed).slice(0,7);}
     function setSelectedReportMonth(month){const value=month||getCurrentMonthKey();['masterMonthFilter','salesReportMonth'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=value;});renderShopMonthReports();renderMonthlySalesAnalytics();}
-    function getOrdersForMonth(month){return (ordersHistory||[]).filter(o=>getOrderMonthKey(o)===month);}
+    function getMonthReportResetKey(){const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;return 'nipa_month_report_reset_user_'+String(uid||'unknown');}
+    function getMonthReportResetMap(){try{return JSON.parse(localStorage.getItem(getMonthReportResetKey())||'{}')||{};}catch(e){return {};}}
+    function saveMonthReportResetMap(map){try{localStorage.setItem(getMonthReportResetKey(),JSON.stringify(map||{}));return true;}catch(e){console.error('Monthly report reset save failed:',e);return false;}}
+    function getOrdersForMonth(month){const excluded=new Set((getMonthReportResetMap()[month]||[]).map(String));return (ordersHistory||[]).filter(o=>getOrderMonthKey(o)===month&&!excluded.has(String(o.id)));}
+    window.getOrdersForMonth=getOrdersForMonth;
     function renderShopMonthReports(){
       const list=document.getElementById('monthShopReports');if(!list)return;
       const month=getSelectedReportMonth(),orders=getOrdersForMonth(month),groups={};
       orders.forEach(o=>{const name=String(o.shopName||'দোকান').trim(),key=name.toLocaleLowerCase();if(!groups[key])groups[key]={name,orders:[],amount:0};groups[key].orders.push(o);groups[key].amount+=Number(o.totalAmount)||0;});
       const rows=Object.values(groups).sort((a,b)=>a.name.localeCompare(b.name));
-      if(!rows.length){list.innerHTML='<div class="text-[10px] text-slate-500 text-center py-2">এই মাসে কোনো order নেই।</div>';return;}
+      if(!rows.length){const wasReset=(getMonthReportResetMap()[month]||[]).length>0;list.innerHTML='<div class="text-[10px] text-slate-500 text-center py-2">'+(wasReset?'এই মাসের রিপোর্ট 0 করা হয়েছে। নতুন order এলে এখানে দেখা যাবে।':'এই মাসে কোনো order নেই।')+'</div>';return;}
       list.innerHTML=rows.map(g=>'<div class="flex items-center justify-between gap-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2"><div class="min-w-0"><div class="truncate text-[10px] font-bold">'+excelEsc(g.name)+'</div><div class="text-[9px] text-slate-500">'+g.orders.length+' order • ৳'+g.amount.toFixed(2)+'</div></div><button type="button" onclick="downloadShopMonthlyExcel(\''+encodeURIComponent(g.name)+'\')" class="shrink-0 px-2 py-1.5 rounded-md bg-emerald-600 text-white text-[9px] font-bold"><i class="fa-solid fa-download mr-1"></i>Excel</button></div>').join('');
     }
     function downloadShopMonthlyExcel(encodedShopName){
@@ -2502,21 +2508,16 @@
       const put=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value;};put('monthRepOrders',String(orders.length));put('monthRepSales','৳'+amount.toFixed(2));put('monthRepUnits',String(units));
       const list=document.getElementById('monthTopSellingList');if(list){const top=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);list.innerHTML=top.length?top.map(x=>'<div class="flex justify-between text-[10px] border-t border-rose-100 dark:border-rose-900/40 py-1"><span>'+excelEsc(x[0])+'</span><b>'+x[1]+' pcs</b></div>').join(''):'<div class="text-center text-[10px] text-slate-500 py-2">এই মাসে কোনো বিক্রয় নেই।</div>';}
     }
-    async function deleteSelectedMonthOrders(){
-      const month=getSelectedReportMonth(),targets=getOrdersForMonth(month);if(!targets.length){alert('এই মাসে মুছার মতো order নেই।');return;}
-      if(!confirm(month+' মাসের '+targets.length+'টি order স্থায়ীভাবে delete করবেন? Delivered order-এর unpaid due Previous Due-তে রাখা হবে। আগে প্রয়োজনীয় Excel download করে নিন.'))return;
-      const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;if(!uid||!window.nipaSupabase){alert('Cloud connection ছাড়া month data delete করা যাবে না।');return;}
-      const ids=targets.map(o=>String(o.id));
-      try{
-        const found=await window.nipaSupabase.from('sr_order_history').select('order_id').eq('user_id',uid).in('order_id',ids);if(found.error)throw found.error;
-        const cloudIds=(found.data||[]).map(x=>String(x.order_id));
-        if(cloudIds.length){const deleted=await window.nipaSupabase.from('sr_order_history').delete().eq('user_id',uid).in('order_id',cloudIds).select('order_id');if(deleted.error)throw deleted.error;const removed=new Set((deleted.data||[]).map(x=>String(x.order_id)));if(cloudIds.some(id=>!removed.has(id)))throw new Error('Cloud policy delete অনুমতি দেয়নি; local data রাখা হয়েছে।');}
-        const prev=getPreviousDues();targets.filter(o=>o.status==='Delivered').forEach(o=>{const due=getOrderDueAmount(o),key=normalizeLedgerShop(o.shopName);if(due>0.009){const entry=prev[key]||{shopName:String(o.shopName||'').trim(),amount:0};entry.amount=Number((Number(entry.amount||0)+due).toFixed(2));prev[key]=entry;}});savePreviousDues(prev);
-        const removedIds=new Set(ids);ordersHistory=ordersHistory.filter(o=>!removedIds.has(String(o.id)));nipaSaveCurrentUserOrders();renderOrderHistoryPage();renderPaymentLedgerPage();renderMasterSheetPage();renderSalesReportPage();updateDashboardStats();
-        alert(month+' মাসের order delete হয়েছে। Outstanding due Previous Due-তে রাখা হয়েছে।');
-      }catch(error){console.error('Month delete failed:',error);alert('Month data delete হয়নি: '+(error.message||error));}
+    function resetSelectedMonthReports(){
+      const month=getSelectedReportMonth(),targets=getOrdersForMonth(month);
+      if(!targets.length){alert('এই মাসের রিপোর্ট আগে থেকেই 0 আছে, অথবা কোনো order নেই।');return;}
+      if(!confirm(month+' মাসের monthly report 0 করবেন? Order History, Sales Report & Analytics-এর মোট হিসাব, বাকি খাতা ও payment history অক্ষত থাকবে।'))return;
+      const map=getMonthReportResetMap(),hidden=new Set((map[month]||[]).map(String));
+      targets.forEach(o=>hidden.add(String(o.id)));map[month]=Array.from(hidden);
+      if(!saveMonthReportResetMap(map)){alert('মাসের রিপোর্ট reset সেভ হয়নি। আবার চেষ্টা করুন।');return;}
+      renderShopMonthReports();renderMonthlySalesAnalytics();
+      alert(month+' মাসের monthly report 0 করা হয়েছে। Order ও বাকি খাতার হিসাব অক্ষত আছে।');
     }
-
     function clearAllDailyOrders() {
       const todayKey = getLocalDateKey();
       const todaysOrders = ordersHistory.filter(ord => {
@@ -2811,7 +2812,7 @@ function nipaAppStateKeys(uid){
   const id=String(uid||''); if(!id) return [];
   return ['nipa_shops_user_'+id,'nipa_previous_due_user_'+id,'nipa_last_shop_user_'+id,
     'mpo_bonuses_user_'+id,'mpo_shop_names_user_'+id,'mpo_orders_user_'+id,
-    'mpo_last_shop_name_user_'+id,'mpo_shop_phone_user_'+id];
+    'mpo_last_shop_name_user_'+id,'mpo_shop_phone_user_'+id,'nipa_month_report_reset_user_'+id];
 }
 function nipaQueueAppStateSync(){
   const uid=window.nipaCurrentUser?.id||nipaCurrentUser?.id;
@@ -2995,7 +2996,8 @@ async function nipaRegister(event){
   }
   return false;
 }
-async function nipaLogin(event){  if (event) event.preventDefault();
+async function nipaLogin(event){
+  if (event) event.preventDefault();
   const email = (document.getElementById('nipaLoginEmail')?.value || '').trim();
   const password = document.getElementById('nipaLoginPassword')?.value || '';
   const btn = document.getElementById('nipaLoginBtn');
@@ -3521,7 +3523,7 @@ window.nipaSupabase = nipaSupabase;
   function downloadAllShopsMonthlyExcel(){
     const now=new Date(), localMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
     const month=document.getElementById('masterMonthFilter')?.value || document.getElementById('salesReportMonth')?.value || localMonth;
-    const orders=(window.ordersHistory||[]).filter(o=>monthKey(o)===month && !o.cancelled && o.status!=='Cancelled');
+    const orders=(typeof window.getOrdersForMonth==='function'?window.getOrdersForMonth(month):(window.ordersHistory||[]).filter(o=>monthKey(o)===month&&!o.cancelled&&o.status!=='Cancelled'));
     if(!orders.length){alert('নির্বাচিত মাসে কোনো অর্ডার পাওয়া যায়নি।');return;}
     const headers=['Month','Shop Name','Shop Address','Shop Phone','Date','Order ID','Status','Product','Pack','Qty','Bonus','MRP','TP+VAT','Line Total','Order Total'];
     const rows=[['NIPA PHARMACEUTICALS LTD.'],['MONTHLY SHOP ORDER REPORT  |  '+month],[],[],headers],merges=[];
@@ -3584,33 +3586,39 @@ window.nipaSupabase = nipaSupabase;
     }
     else {const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff',csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Nipa_All_Shops_'+month+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
   }
-  // Mark false/fake orders as cancelled instead of silently deleting their history.
-  window.nipaCancelFakeOrder=function(orderId){
+  // Permanently remove an unpaid fake order from cloud and local app state.
+  window.nipaDeleteFakeOrder=async function(orderId){
     const order=(window.ordersHistory||[]).find(o=>String(o.id)===String(orderId));if(!order)return;
-    if(order.status==='Delivered' && (typeof window.getOrderPaidAmount==='function' ? window.getOrderPaidAmount(order)>0 : (order.payments||[]).length>0)){
-      alert('এই অর্ডারে টাকা জমা হয়েছে। আগে payment history যাচাই করুন; জমা থাকা অর্ডার সরাসরি বাতিল করা যাচ্ছে না।');return;
-    }
-    if(!confirm('এই ভুল/ভুয়া অর্ডারটি Cancel করবেন? বাতিল অর্ডার বিক্রি ও বাকি হিসাব থেকে বাদ যাবে।'))return;
-    order.status='Cancelled';order.cancelled=true;order.cancelledAt=Date.now();
-    try{if(typeof window.nipaSaveCurrentUserOrders==='function')window.nipaSaveCurrentUserOrders();}catch(e){}
-    try{if(typeof window.updateCloudOrderStatus==='function')window.updateCloudOrderStatus(order);}catch(e){}
-    ['renderOrderHistoryPage','renderPaymentLedgerPage','renderMasterSheetPage','renderSalesReportPage','updateDashboardStats'].forEach(fn=>{try{if(typeof window[fn]==='function')window[fn]();}catch(e){}});
+    const hasPayments=Array.isArray(order.payments)&&order.payments.length>0;
+    if(hasPayments){alert('এই অর্ডারে Payment history আছে। Payment history থাকা অর্ডার delete করা যাবে না।');return;}
+    if(!confirm('এই ভুল অর্ডারটি স্থায়ীভাবে delete করবেন? এটি Order History, মোট বিক্রি, Report এবং Shop Ledger—সব জায়গা থেকে মুছে যাবে।'))return;
+    const uid=window.nipaCurrentUser?.id;if(!uid||!window.nipaSupabase){alert('Cloud connection ছাড়া order delete করা যাবে না।');return;}
+    try{
+      const result=await window.nipaSupabase.rpc('delete_own_unpaid_order',{p_order_id:String(order.id)});
+      if(result.error)throw result.error;
+      const removed=new Set((result.data||[]).map(row=>String(row.order_id)));
+      if(!removed.has(String(order.id)))throw new Error('Cloud order delete হয়নি। SQL permission setup ও order status যাচাই করুন।');
+      window.ordersHistory=window.ordersHistory.filter(o=>String(o.id)!==String(order.id));
+      window.nipaSaveCurrentUserOrders();
+      ['renderOrderHistoryPage','renderPaymentLedgerPage','renderMasterSheetPage','renderSalesReportPage','updateDashboardStats'].forEach(fn=>{try{if(typeof window[fn]==='function')window[fn]();}catch(e){}});
+      alert('অর্ডারটি সব জায়গা থেকে delete হয়েছে।');
+    }catch(error){console.error('Fake order delete failed:',error);alert('অর্ডারটি delete হয়নি: '+(error.message||error)+'\nSupabase SQL Editor-এ দেওয়া month-delete-permission.sql আপডেটেড কপি একবার চালান।');}
   };
-  // Attach cancel button to each visible order card after rendering.
+  // Attach delete button to each visible order card after rendering.
   const originalRender=window.renderOrderHistoryPage;
   if(typeof originalRender==='function'){
     window.renderOrderHistoryPage=function(){
       originalRender.apply(this,arguments);
       document.querySelectorAll('#orderHistoryList > div').forEach(card=>{
-        if(card.querySelector('[data-nipa-cancel]'))return;
+        if(card.querySelector('[data-nipa-delete]'))return;
         const text=card.textContent||'', m=text.match(/(?:Order|অর্ডার)?\s*#?\s*([A-Z0-9-]{4,})/i);
         // Find exact order by matching the displayed ID in the card.
         const order=(window.ordersHistory||[]).find(o=>card.innerHTML.includes(String(o.id)));
-        if(!order || order.status==='Cancelled')return;
+        if(!order)return;
         const actions=card.querySelector('.pt-1.flex.gap-2');
         if(!actions)return;
-        const btn=document.createElement('button');btn.dataset.nipaCancel='1';btn.className='px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-[10px] font-bold';
-        btn.textContent='ভুল অর্ডার মুছুন (Cancel)';btn.onclick=()=>window.nipaCancelFakeOrder(order.id);actions.appendChild(btn);
+        const btn=document.createElement('button');btn.dataset.nipaDelete='1';btn.className='px-3 py-1.5 rounded-lg bg-red-100 text-red-700 text-[10px] font-bold';
+        btn.textContent='ভুল অর্ডার মুছুন';btn.onclick=()=>window.nipaDeleteFakeOrder(order.id);actions.appendChild(btn);
       });
     };
   }
