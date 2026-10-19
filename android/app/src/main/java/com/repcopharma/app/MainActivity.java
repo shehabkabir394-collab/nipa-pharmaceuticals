@@ -1,6 +1,7 @@
 package com.repcopharma.app;
 
 import android.Manifest;
+import android.content.Intent;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.ContentValues;
@@ -15,6 +16,7 @@ import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
+import android.webkit.ValueCallback;
 import android.webkit.WebSettings;
 import android.webkit.URLUtil;
 import android.webkit.WebView;
@@ -32,6 +34,8 @@ public final class MainActivity extends Activity {
     private static final int DOWNLOAD_PERMISSION_REQUEST = 41;
     private WebView webView;
     private PendingBlob pendingBlob;
+    private ValueCallback<Uri[]> pendingFileChooser;
+    private static final int IMAGE_PICKER_REQUEST = 77;
 
     private static final class PendingBlob {
         final String name, mime;
@@ -125,7 +129,25 @@ public final class MainActivity extends Activity {
         CookieManager.getInstance().setAcceptCookie(true);
         webView.addJavascriptInterface(new AndroidDownloadBridge(), "AndroidDownload");
         webView.setWebViewClient(new WebViewClient());
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePathCallback, FileChooserParams params) {
+                if (pendingFileChooser != null) pendingFileChooser.onReceiveValue(null);
+                pendingFileChooser = filePathCallback;
+                Intent picker = new Intent(Intent.ACTION_GET_CONTENT);
+                picker.addCategory(Intent.CATEGORY_OPENABLE);
+                picker.setType("image/*");
+                try {
+                    startActivityForResult(Intent.createChooser(picker, "ছবি নির্বাচন করুন"), IMAGE_PICKER_REQUEST);
+                    return true;
+                } catch (Exception error) {
+                    pendingFileChooser = null;
+                    filePathCallback.onReceiveValue(null);
+                    Toast.makeText(MainActivity.this, "ছবি নির্বাচন করা যাচ্ছে না।", Toast.LENGTH_LONG).show();
+                    return false;
+                }
+            }
+        });
         webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
             if (!url.startsWith("https://") && !url.startsWith("http://")) {
                 Toast.makeText(this, "এই ফাইলটি অ্যাপ থেকে download করা যাচ্ছে না।", Toast.LENGTH_LONG).show();
@@ -152,6 +174,19 @@ public final class MainActivity extends Activity {
 
         if (savedInstanceState == null) webView.loadUrl(APP_URL);
         else webView.restoreState(savedInstanceState);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == IMAGE_PICKER_REQUEST) {
+            if (pendingFileChooser != null) {
+                Uri[] result = resultCode == Activity.RESULT_OK && data != null && data.getData() != null ? new Uri[]{data.getData()} : null;
+                pendingFileChooser.onReceiveValue(result);
+                pendingFileChooser = null;
+            }
+            return;
+        }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
