@@ -5,7 +5,7 @@
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
-        android:label="Repco Pharmaceutical"
+        android:label="Rephco Pharmaceutical"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
         <activity
