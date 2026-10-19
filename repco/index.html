@@ -3244,19 +3244,15 @@
     }
     function excelEsc(v){ return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
     function forceBrowserDownload(blob, filename){
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function(){
-        URL.revokeObjectURL(url);
-        if (a.parentNode) a.parentNode.removeChild(a);
-      }, 2000);
+      if(window.AndroidDownload && window.AndroidDownload.saveBlob){
+        const reader=new FileReader();
+        reader.onload=function(){const dataUrl=String(reader.result||''),base64=dataUrl.split(',')[1]||'';window.AndroidDownload.saveBlob(filename,blob.type||'application/octet-stream',base64);};
+        reader.onerror=function(){alert('ফাইল তৈরি করা যায়নি। আবার চেষ্টা করুন।');};
+        reader.readAsDataURL(blob);return;
+      }
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.style.display='none';document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(url);if(a.parentNode)a.parentNode.removeChild(a);},2000);
     }
-
     function getLocalDateKey(date = new Date()) {
       return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
     }
@@ -4366,9 +4362,13 @@ window.nipaSupabase = nipaSupabase;
       ws['!rows'][4]={hpt:32};ws['!rows'][grandTotalRow]={hpt:24};
       wb.Props={Title:'Monthly Shop Order Report - '+month,Subject:'Shop-wise product and order details',Creator:'Rephco Pharmaceutical Limited'};
       XLSX.utils.book_append_sheet(wb,ws,'Monthly Report');
-      XLSX.writeFile(wb,'Repco_All_Shops_'+month+'.xlsx');
+      const xlsxName='Rephco_All_Shops_'+month+'.xlsx';
+      if(window.AndroidDownload && window.AndroidDownload.saveBlob){
+        const data=XLSX.write(wb,{bookType:'xlsx',type:'base64'});
+        window.AndroidDownload.saveBlob(xlsxName,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',data);
+      } else { XLSX.writeFile(wb,xlsxName); }
     }
-    else {const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff',csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Repco_All_Shops_'+month+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+    else {const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');const blob=new Blob(['\ufeff',csv],{type:'text/csv;charset=utf-8'});forceBrowserDownload(blob,'Rephco_All_Shops_'+month+'.csv');}
   }
   // Permanently remove an unpaid fake order from cloud and local app state.
   window.nipaDeleteFakeOrder=async function(orderId){
