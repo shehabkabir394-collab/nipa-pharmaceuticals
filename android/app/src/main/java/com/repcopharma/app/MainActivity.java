@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
         }
     }
 
+    // Save Blob-generated reports directly to the Android Downloads collection.
     private void saveDownload(PendingBlob file) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
                 checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
