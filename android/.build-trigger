@@ -1,1 +1,1 @@
-Trigger the corrected GitHub Actions APK build.
+Trigger the corrected APK build after moving SDK install to its own command step.
