@@ -17,15 +17,18 @@ In the Supabase Dashboard, open Edge Functions > Secrets and add:
 
 Supabase injects `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` into Edge Functions.
 
-## Deploy the sender
+## Configure and deploy the sender
 
-From the repository root, deploy the function to the same Supabase project:
+In GitHub, open Settings > Secrets and variables > Actions and add these repository secrets:
+- `SUPABASE_ACCESS_TOKEN`: a Supabase personal access token
+- `SUPABASE_PROJECT_REF`: the project-ref at the start of the Supabase project URL
+- `FCM_PROJECT_ID`: `repcopharma-app`
+- `FCM_CLIENT_EMAIL`: service account `client_email`
+- `FCM_PRIVATE_KEY`: service account `private_key`
 
-```sh
-supabase functions deploy notify-new-product --project-ref YOUR_SUPABASE_PROJECT_REF
-```
+Then open Actions > Deploy Repco push notifications > Run workflow. After that, edits under `supabase/functions/notify-new-product/` deploy automatically. The workflow stores FCM credentials as Supabase Function secrets and deploys the function. Keep the service-account key private; do not commit it or send it in chat.
 
-The function keeps JWT verification enabled. It checks that the caller is an active Admin, verifies the product exists, then sends FCM messages to registered devices. FCM credentials remain server-side.
+The function keeps JWT verification enabled. It checks that the caller is an active Admin, verifies the product exists, then sends FCM messages to registered devices.
 
 ## Install the new Android APK
 
