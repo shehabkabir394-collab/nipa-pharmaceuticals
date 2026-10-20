@@ -9,6 +9,9 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Build;
+import org.json.JSONObject;
+import com.google.firebase.messaging.FirebaseMessaging;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.View;
@@ -32,6 +35,8 @@ import java.io.OutputStream;
 public final class MainActivity extends Activity {
     private static final String APP_URL = "https://repco.pages.dev";
     private static final int DOWNLOAD_PERMISSION_REQUEST = 41;
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 42;
+    private static volatile MainActivity activeActivity;
     private WebView webView;
     private PendingBlob pendingBlob;
     private ValueCallback<Uri[]> pendingFileChooser;
@@ -110,9 +115,24 @@ public final class MainActivity extends Activity {
         }
     }
 
+    public static void notifyPushTokenChanged(String token) {
+        MainActivity activity = activeActivity;
+        if (activity != null) activity.sendPushTokenToWeb(token);
+    }
+
+    private void sendPushTokenToWeb(String token) {
+        WebView target = webView;
+        if (target == null || token == null) return;
+        Uri uri = Uri.parse(target.getUrl() == null ? "" : target.getUrl());
+        if (!"repco.pages.dev".equals(uri.getHost())) return;
+        String script = "window.repcoReceiveFcmToken && window.repcoReceiveFcmToken(" + JSONObject.quote(token) + ");";
+        target.post(() -> target.evaluateJavascript(script, null));
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        activeActivity = this;
         getWindow().setStatusBarColor(Color.parseColor("#07823E"));
         getWindow().setNavigationBarColor(Color.parseColor("#F0FDF4"));
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
@@ -128,7 +148,16 @@ public final class MainActivity extends Activity {
 
         CookieManager.getInstance().setAcceptCookie(true);
         webView.addJavascriptInterface(new AndroidDownloadBridge(), "AndroidDownload");
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (!"repco.pages.dev".equals(Uri.parse(url).getHost())) return;
+                FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && task.getResult() != null) sendPushTokenToWeb(task.getResult());
+                });
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> filePathCallback, FileChooserParams params) {
@@ -171,6 +200,9 @@ public final class MainActivity extends Activity {
         });
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         setContentView(webView);
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_PERMISSION_REQUEST);
+        }
 
         if (savedInstanceState == null) webView.loadUrl(APP_URL);
         else webView.restoreState(savedInstanceState);
@@ -203,6 +235,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (activeActivity == this) activeActivity = null;
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();
