@@ -150,7 +150,7 @@ public final class MainActivity extends Activity {
                 JSONObject manifest = new JSONObject(body.toString());
                 int latestCode = manifest.optInt("versionCode", 0);
                 String latestName = manifest.optString("versionName", "");
-                if (latestCode <= BuildConfig.VERSION_CODE) return;
+                if (latestCode <= getPackageManager().getPackageInfo(getPackageName(), 0).versionCode) return;
                 if (getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).getInt("dismissed_version", 0) == latestCode) return;
                 runOnUiThread(() -> showUpdateDialog(latestCode, latestName));
             } catch (Exception ignored) {
@@ -202,7 +202,7 @@ public final class MainActivity extends Activity {
             request.setAllowedOverMetered(true);
             request.setAllowedOverRoaming(false);
             request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS,
-                    "Rephco-Pharma-update-" + (BuildConfig.VERSION_CODE + 1) + ".apk");
+                    "Rephco-Pharma-update-" + (getPackageManager().getPackageInfo(getPackageName(), 0).versionCode + 1) + ".apk");
             DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
             updateDownloadId = manager.enqueue(request);
             Toast.makeText(this, "Update download শুরু হয়েছে।", Toast.LENGTH_LONG).show();
