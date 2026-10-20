@@ -1,0 +1,53 @@
+name: Deploy Repco push notifications
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'supabase/functions/notify-new-product/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate deployment secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
+          FCM_CLIENT_EMAIL: ${{ secrets.FCM_CLIENT_EMAIL }}
+          FCM_PRIVATE_KEY: ${{ secrets.FCM_PRIVATE_KEY }}
+        run: |
+          for name in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF FCM_PROJECT_ID FCM_CLIENT_EMAIL FCM_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Missing GitHub Actions secret: $name"; exit 1; fi
+          done
+
+      - name: Store FCM credentials in Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
+          FCM_CLIENT_EMAIL: ${{ secrets.FCM_CLIENT_EMAIL }}
+          FCM_PRIVATE_KEY: ${{ secrets.FCM_PRIVATE_KEY }}
+        run: |
+          supabase secrets set --project-ref "$SUPABASE_PROJECT_REF" \
+            "FCM_PROJECT_ID=$FCM_PROJECT_ID" \
+            "FCM_CLIENT_EMAIL=$FCM_CLIENT_EMAIL" \
+            "FCM_PRIVATE_KEY=$FCM_PRIVATE_KEY"
+
+      - name: Deploy Edge Function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase functions deploy notify-new-product --project-ref "$SUPABASE_PROJECT_REF"
