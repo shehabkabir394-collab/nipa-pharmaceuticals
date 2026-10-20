@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "716527012377",
+    "project_id": "repcopharma-app",
+    "storage_bucket": "repcopharma-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:716527012377:android:c0b518aa5d753779d63888",
+        "android_client_info": {
+          "package_name": "com.repcopharma.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDRLHv4EGqRayRtH7WM8xO4c3LWIIw97u4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
