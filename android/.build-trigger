@@ -1,1 +1,1 @@
-Trigger the corrected APK build after moving SDK install to its own command step.
+Build the signed Repco APK using the stable release signing key.
