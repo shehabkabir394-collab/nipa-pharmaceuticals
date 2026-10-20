@@ -42,6 +42,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 
+// Self-updater release point for Cloudflare-hosted APK metadata.
 public final class MainActivity extends Activity {
     private static final String APP_URL = "https://repco.pages.dev";
     private static final String UPDATE_JSON_URL = "https://repco-app-download.pages.dev/version.json";
