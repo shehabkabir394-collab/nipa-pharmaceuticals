@@ -4,6 +4,16 @@ import android.Manifest;
 import android.content.Intent;
 import android.app.Activity;
 import android.app.DownloadManager;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.database.Cursor;
+import android.provider.Settings;
+import android.os.Handler;
+import android.os.Looper;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import android.content.ContentValues;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -34,6 +44,13 @@ import java.io.OutputStream;
 
 public final class MainActivity extends Activity {
     private static final String APP_URL = "https://repco.pages.dev";
+    private static final String UPDATE_JSON_URL = "https://repco-app-download.pages.dev/version.json";
+    private static final String APK_DOWNLOAD_URL = "https://repco-app-download.pages.dev/Rephco-Pharma.apk";
+    private static final int INSTALL_SOURCE_SETTINGS_REQUEST = 43;
+    private static final String UPDATE_PREFS = "app_update_preferences";
+    private final Handler updateHandler = new Handler(Looper.getMainLooper());
+    private long updateDownloadId = -1L;
+    private boolean waitingForInstallPermission = false;
     private static final int DOWNLOAD_PERMISSION_REQUEST = 41;
     private static final int NOTIFICATION_PERMISSION_REQUEST = 42;
     private static volatile MainActivity activeActivity;
@@ -112,6 +129,116 @@ public final class MainActivity extends Activity {
             pendingBlob = null;
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) saveDownload(file);
             else Toast.makeText(this, "Downloads ফোল্ডারে সেভ করার অনুমতি দিন।", Toast.LENGTH_LONG).show();
+        }
+    }
+
+
+    private void checkForAppUpdate() {
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                connection = (HttpURLConnection) new URL(UPDATE_JSON_URL).openConnection();
+                connection.setConnectTimeout(8000);
+                connection.setReadTimeout(8000);
+                connection.setRequestProperty("Cache-Control", "no-cache");
+                StringBuilder body = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) body.append(line);
+                }
+                JSONObject manifest = new JSONObject(body.toString());
+                int latestCode = manifest.optInt("versionCode", 0);
+                String latestName = manifest.optString("versionName", "");
+                if (latestCode <= BuildConfig.VERSION_CODE) return;
+                if (getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).getInt("dismissed_version", 0) == latestCode) return;
+                runOnUiThread(() -> showUpdateDialog(latestCode, latestName));
+            } catch (Exception ignored) {
+                // A temporary network failure should not interrupt opening the app.
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }, "rephco-update-check").start();
+    }
+
+    private void showUpdateDialog(int versionCode, String versionName) {
+        if (isFinishing() || isDestroyed()) return;
+        String version = versionName.isEmpty() ? "" : " (" + versionName + ")";
+        new AlertDialog.Builder(this)
+                .setTitle("নতুন app update")
+                .setMessage("Rephco app-এর নতুন version" + version + " পাওয়া গেছে। এখন update করবেন?")
+                .setCancelable(false)
+                .setPositiveButton("Update Now", (dialog, which) -> requestInstallPermissionThenDownload())
+                .setNegativeButton("পরে", (dialog, which) ->
+                        getSharedPreferences(UPDATE_PREFS, MODE_PRIVATE).edit()
+                                .putInt("dismissed_version", versionCode).apply())
+                .show();
+    }
+
+    private void requestInstallPermissionThenDownload() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                !getPackageManager().canRequestPackageInstalls()) {
+            waitingForInstallPermission = true;
+            try {
+                Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                        Uri.parse("package:" + getPackageName()));
+                startActivityForResult(settingsIntent, INSTALL_SOURCE_SETTINGS_REQUEST);
+            } catch (Exception error) {
+                waitingForInstallPermission = false;
+                Toast.makeText(this, "এই app থেকে update install করার অনুমতি চালু করুন।", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        startUpdateDownload();
+    }
+
+    private void startUpdateDownload() {
+        try {
+            DownloadManager.Request request = new DownloadManager.Request(Uri.parse(APK_DOWNLOAD_URL));
+            request.setTitle("Rephco app update");
+            request.setDescription("নতুন app version download হচ্ছে");
+            request.setMimeType("application/vnd.android.package-archive");
+            request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE);
+            request.setAllowedOverMetered(true);
+            request.setAllowedOverRoaming(false);
+            request.setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS,
+                    "Rephco-Pharma-update-" + (BuildConfig.VERSION_CODE + 1) + ".apk");
+            DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            updateDownloadId = manager.enqueue(request);
+            Toast.makeText(this, "Update download শুরু হয়েছে।", Toast.LENGTH_LONG).show();
+            updateHandler.postDelayed(this::checkUpdateDownload, 1200);
+        } catch (Exception error) {
+            Toast.makeText(this, "Update download শুরু করা যায়নি।", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void checkUpdateDownload() {
+        if (updateDownloadId < 0) return;
+        DownloadManager manager = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        Cursor cursor = null;
+        try {
+            cursor = manager.query(new DownloadManager.Query().setFilterById(updateDownloadId));
+            if (cursor == null || !cursor.moveToFirst()) return;
+            int status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS));
+            if (status == DownloadManager.STATUS_RUNNING || status == DownloadManager.STATUS_PENDING ||
+                    status == DownloadManager.STATUS_PAUSED) {
+                updateHandler.postDelayed(this::checkUpdateDownload, 1200);
+            } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                Uri apkUri = manager.getUriForDownloadedFile(updateDownloadId);
+                updateDownloadId = -1L;
+                if (apkUri == null) throw new IllegalStateException("Downloaded APK URI is missing");
+                Intent installIntent = new Intent(Intent.ACTION_INSTALL_PACKAGE);
+                installIntent.setDataAndType(apkUri, "application/vnd.android.package-archive");
+                installIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(installIntent);
+            } else {
+                updateDownloadId = -1L;
+                Toast.makeText(this, "Update download হয়নি। Internet দেখে আবার চেষ্টা করুন।", Toast.LENGTH_LONG).show();
+            }
+        } catch (Exception error) {
+            updateDownloadId = -1L;
+            Toast.makeText(this, "APK install screen খোলা যায়নি।", Toast.LENGTH_LONG).show();
+        } finally {
+            if (cursor != null) cursor.close();
         }
     }
 
@@ -206,10 +333,17 @@ public final class MainActivity extends Activity {
 
         if (savedInstanceState == null) webView.loadUrl(APP_URL);
         else webView.restoreState(savedInstanceState);
+        checkForAppUpdate();
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == INSTALL_SOURCE_SETTINGS_REQUEST && waitingForInstallPermission) {
+            waitingForInstallPermission = false;
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || getPackageManager().canRequestPackageInstalls()) startUpdateDownload();
+            else Toast.makeText(this, "Update করতে install permission চালু করতে হবে।", Toast.LENGTH_LONG).show();
+            return;
+        }
         if (requestCode == IMAGE_PICKER_REQUEST) {
             if (pendingFileChooser != null) {
                 Uri[] result = resultCode == Activity.RESULT_OK && data != null && data.getData() != null ? new Uri[]{data.getData()} : null;
@@ -236,6 +370,7 @@ public final class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (activeActivity == this) activeActivity = null;
+        updateHandler.removeCallbacksAndMessages(null);
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();
