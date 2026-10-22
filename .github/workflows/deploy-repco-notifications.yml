@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'supabase/functions/notify-new-product/**'
+      - 'supabase/functions/notify-new-message/**'
 
 permissions:
   contents: read
@@ -46,8 +47,10 @@ jobs:
             "FCM_CLIENT_EMAIL=$FCM_CLIENT_EMAIL" \
             "FCM_PRIVATE_KEY=$FCM_PRIVATE_KEY"
 
-      - name: Deploy Edge Function
+      - name: Deploy Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: supabase functions deploy notify-new-product --project-ref "$SUPABASE_PROJECT_REF"
+        run: |
+          supabase functions deploy notify-new-product --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy notify-new-message --project-ref "$SUPABASE_PROJECT_REF"
