@@ -17,7 +17,18 @@ function base64Url(value: string | Uint8Array): string {
 
 async function fcmAccessToken(): Promise<string> {
   const email = env("FCM_CLIENT_EMAIL");
-  const privateKey = env("FCM_PRIVATE_KEY").replace(/\\n/g, "\n");
+    let privateKey = env("FCM_PRIVATE_KEY").replace(/^\uFEFF/, "").trim();
+  if (privateKey.startsWith("{") || privateKey.startsWith('"')) {
+    try {
+      const parsed = JSON.parse(privateKey);
+      if (typeof parsed === "string") privateKey = parsed;
+      else if (typeof parsed?.private_key === "string") privateKey = parsed.private_key;
+    } catch {
+      // Continue to PEM parsing for a clear format error.
+    }
+  }
+  privateKey = privateKey.replace(/\\r/g, "\r").replace(/\\n/g, "\n").replace(/\r\n?/g, "\n").trim();
+
   if (!email || !privateKey) throw new Error("FCM credentials are not configured");
   const now = Math.floor(Date.now() / 1000);
   const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
