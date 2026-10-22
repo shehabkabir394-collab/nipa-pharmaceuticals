@@ -4502,5 +4502,28 @@ window.nipaSupabase = nipaSupabase;
 </script>
 
 
+<script>
+(function(){
+  let activeRecipient='';
+  const openConversation=window.nipaOpenConversation;
+  if(typeof openConversation==='function')window.nipaOpenConversation=function(id){activeRecipient=String(id||'');return openConversation.apply(this,arguments);};
+  const sendMessage=window.nipaSendMessage;
+  if(typeof sendMessage!=='function')return;
+  window.nipaSendMessage=async function(event){
+    const input=document.getElementById('nipaMessageInput');
+    const body=String(input?.value||'').trim(),recipient=activeRecipient;
+    const result=await sendMessage.apply(this,arguments);
+    if(!body||!recipient||input?.value?.trim())return result;
+    const notice=document.getElementById('nipaMessageNotice');
+    try{
+      const {data,error}=await window.nipaSupabase.functions.invoke('notify-new-message',{body:{recipient_id:recipient,body}});
+      if(error)throw error;
+      if(notice){const ok=Number(data?.sent)>0;notice.textContent=ok?'মেসেজ পাঠানো হয়েছে; ফোনে notification পাঠানো হয়েছে।':data?.message?('মেসেজ পাঠানো হয়েছে। '+data.message):'মেসেজ পাঠানো হয়েছে; notification পাঠানো যায়নি।';notice.className='rounded-xl p-3 text-xs '+(ok?'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300':'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300');}
+    }catch(error){console.warn('Message push failed:',error);if(notice){notice.textContent='মেসেজ পাঠানো হয়েছে, কিন্তু notification পাঠানো যায়নি।';notice.className='rounded-xl p-3 text-xs bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';}}
+    return result;
+  };
+})();
+</script>
+
 </body>
 </html>
