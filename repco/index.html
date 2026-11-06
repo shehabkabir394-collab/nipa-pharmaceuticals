@@ -319,6 +319,7 @@
           <button id="nipaLoginBtn" class="nipa-login-btn" type="submit"><i class="fa-solid fa-right-to-bracket mr-1"></i> Login</button>
         </form>
         <button type="button" class="nipa-register-link" onclick="nipaShowRegister()"><i class="fa-solid fa-user-plus mr-1"></i> SR Registration</button>
+        <a href="/?demo=1" class="nipa-register-link flex items-center justify-center gap-2" style="text-decoration:none;background:#eff6ff;border-color:#0284c7;color:#0369a1"><i class="fa-solid fa-eye"></i> Guest Demo — Explore App</a>
       </div>
 
       <div id="nipaRegisterPanel" class="nipa-register-panel">
@@ -3892,7 +3893,56 @@ async function nipaLogout(){
 }
 window.nipaLogout = nipaLogout;
 window.nipaSupabase = nipaSupabase;
+const REPHCO_DEMO_MODE = new URLSearchParams(window.location.search).get('demo') === '1';
+function nipaStartGuestDemo(){
+  // Guest demo is isolated: no authenticated user, no cloud reads/writes, and no local persistence.
+  try {
+    const oldGet=Storage.prototype.getItem, oldSet=Storage.prototype.setItem, oldRemove=Storage.prototype.removeItem, oldClear=Storage.prototype.clear;
+    Storage.prototype.getItem=function(key){ return this===localStorage ? null : oldGet.call(this,key); };
+    Storage.prototype.setItem=function(key,value){ if(this===localStorage)return; return oldSet.call(this,key,value); };
+    Storage.prototype.removeItem=function(key){ if(this===localStorage)return; return oldRemove.call(this,key); };
+    Storage.prototype.clear=function(){ if(this===localStorage)return; return oldClear.call(this); };
+  } catch(e){ console.warn('Demo storage isolation unavailable:',e); }
+  document.body.classList.add('rephco-demo-mode');
+  const profile={id:null,email:'guest-demo@rephco.local',full_name:'Guest Demo',mpo_code:'DEMO',role:'sr',active:true};
+  nipaCurrentUser={id:null,email:profile.email}; window.nipaCurrentUser=nipaCurrentUser;
+  nipaApplyIdentity(profile);
+  nipaLoadLocalOrdersForProfile(profile,null);
+  nipaLoadScopedLocalData(profile,null);
+  const now=Date.now(), today=new Date();
+  const dateText=today.toLocaleDateString('bn-BD');
+  window.ordersHistory=[
+    {id:'DEMO-1001',shopName:'মেসার্স রহমান মেডিকেল হল',date:dateText,createdAt:now-3600000,status:'Delivered',totalAmount:2450,items:[{name:'R-Vtin',pack:'Tablet',qty:10,mrp:120,tpVat:100,total:1200},{name:'Xonad-120',pack:'Tablet',qty:5,mrp:250,tpVat:210,total:1250}],payments:[{amount:1000,date:dateText}]},
+    {id:'DEMO-1002',shopName:'জনতা ফার্মেসী',date:dateText,createdAt:now-7200000,status:'Pending',totalAmount:1680,items:[{name:'Metrogyl-400 Tab.',pack:'Tablet',qty:6,mrp:170,tpVat:140,total:1020},{name:'Histadyl Tab',pack:'Tablet',qty:4,mrp:150,tpVat:165,total:660}],payments:[]},
+    {id:'DEMO-0998',shopName:'মেসার্স রহমান মেডিকেল হল',date:today.toLocaleDateString('bn-BD',{day:'2-digit',month:'2-digit',year:'numeric'}),createdAt:now-86400000,status:'Delivered',totalAmount:960,items:[{name:'Calci-D',pack:'Tablet',qty:4,mrp:240,tpVat:200,total:960}],payments:[{amount:960,date:dateText}]}
+  ];
+  window.__nipaAdminOrders=[];
+  nipaSetLoginStatus('Guest Demo — Read only');
+  nipaHideLogin();
+  const banner=document.createElement('div');
+  banner.id='rephcoDemoBanner';
+  banner.innerHTML='<i class="fa-solid fa-eye"></i><b> GUEST DEMO MODE</b><span> — Sample data only • Read only • No changes are saved</span>';
+  banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:25000;padding:7px 10px;text-align:center;background:#0f4c81;color:#fff;font:700 11px Hind Siliguri,sans-serif;box-shadow:0 2px 10px #0002';
+  document.body.appendChild(banner);
+  document.body.style.paddingTop='32px';
+  // Let visitors navigate and inspect products, but block every form submission and action button.
+  document.addEventListener('submit',function(e){e.preventDefault();e.stopImmediatePropagation();demoReadOnlyNotice();},true);
+  document.addEventListener('click',function(e){
+    const btn=e.target.closest('button');
+    if(!btn)return;
+    const action=btn.getAttribute('onclick')||'';
+    if(/navTo|bottomNavTo|toggleSideMenu|openProduct|showProduct|viewProduct|closeProduct|filter|search|category|render/i.test(action))return;
+    e.preventDefault();e.stopImmediatePropagation();demoReadOnlyNotice();
+  },true);
+  function demoReadOnlyNotice(){
+    let note=document.getElementById('rephcoDemoNotice');
+    if(!note){note=document.createElement('div');note.id='rephcoDemoNotice';note.style.cssText='position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:26000;background:#0f172a;color:white;padding:10px 16px;border-radius:12px;font:600 12px Hind Siliguri,sans-serif;box-shadow:0 5px 20px #0003';document.body.appendChild(note);}
+    note.textContent='এটি শুধু Demo — এখানে কোনো অর্ডার বা হিসাব Save করা যাবে না।';
+    note.style.display='block';clearTimeout(window.__rephcoDemoNoticeTimer);window.__rephcoDemoNoticeTimer=setTimeout(()=>note.style.display='none',2200);
+  }
+}
 (async function nipaAuthBoot(){
+  if(REPHCO_DEMO_MODE){ nipaStartGuestDemo(); return; }
   try {
     nipaSetLoginStatus('Checking secure session…');
     const { data: { session } } = await nipaSupabase.auth.getSession();
