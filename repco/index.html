@@ -3910,11 +3910,11 @@ function nipaStartGuestDemo(){
   nipaLoadLocalOrdersForProfile(profile,null);
   nipaLoadScopedLocalData(profile,null);
   const now=Date.now(), today=new Date();
-  const dateText=today.toLocaleDateString('bn-BD');
+  const dateText=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
   window.ordersHistory=[
     {id:'DEMO-1001',shopName:'মেসার্স রহমান মেডিকেল হল',date:dateText,createdAt:now-3600000,status:'Delivered',totalAmount:2450,items:[{name:'R-Vtin',pack:'Tablet',qty:10,mrp:120,tpVat:100,total:1200},{name:'Xonad-120',pack:'Tablet',qty:5,mrp:250,tpVat:210,total:1250}],payments:[{amount:1000,date:dateText}]},
     {id:'DEMO-1002',shopName:'জনতা ফার্মেসী',date:dateText,createdAt:now-7200000,status:'Pending',totalAmount:1680,items:[{name:'Metrogyl-400 Tab.',pack:'Tablet',qty:6,mrp:170,tpVat:140,total:1020},{name:'Histadyl Tab',pack:'Tablet',qty:4,mrp:150,tpVat:165,total:660}],payments:[]},
-    {id:'DEMO-0998',shopName:'মেসার্স রহমান মেডিকেল হল',date:today.toLocaleDateString('bn-BD',{day:'2-digit',month:'2-digit',year:'numeric'}),createdAt:now-86400000,status:'Delivered',totalAmount:960,items:[{name:'Calci-D',pack:'Tablet',qty:4,mrp:240,tpVat:200,total:960}],payments:[{amount:960,date:dateText}]}
+    {id:'DEMO-0998',shopName:'মেসার্স রহমান মেডিকেল হল',date:dateText,createdAt:now-86400000,status:'Delivered',totalAmount:960,items:[{name:'Calci-D',pack:'Tablet',qty:4,mrp:240,tpVat:200,total:960}],payments:[{amount:960,date:dateText}]}
   ];
   window.__nipaAdminOrders=[];
   nipaSetLoginStatus('Guest Demo — Read only');
